@@ -250,10 +250,12 @@ def _get_default_workflow_params():
     params = TB_DEFAULT_FILTER_SETTINGS.copy()
     params.update({
         "upscale_model": list(tb_processor.esrgan_upscaler.supported_models.keys())[0] if tb_processor.esrgan_upscaler.supported_models else None,
-        "upscale_factor": 2.0, # A sensible default
+        "upscale_factor": 2.0,
         "tile_size": 0,
         "enhance_face": False,
         "denoise_strength": 0.5,
+        "upscale_use_streaming": False,
+        "frames_use_streaming": False,
         "fps_mode": "No Interpolation",
         "speed_factor": 1.0,
         "loop_type": "loop",
@@ -492,12 +494,13 @@ def tb_handle_save_workflow_preset(preset_name, active_steps, *params):
         return gr.update(), gr.update(value=preset_name), tb_update_messages()
 
     clean_name = preset_name.strip()
+    # This key list MUST match the order of components in _ALL_PIPELINE_PARAMS_COMPONENTS_
     param_keys = [
         # Upscale
         "upscale_model", "upscale_factor", "tile_size",
-        "enhance_face", "denoise_strength",
+        "enhance_face", "denoise_strength", "upscale_use_streaming",
         # Frame Adjust
-        "fps_mode", "speed_factor",
+        "fps_mode", "speed_factor", "frames_use_streaming",
         # Loop
         "loop_type", "num_loops",
         # Filters (using the ordered keys from the constant)
@@ -535,6 +538,12 @@ def tb_handle_save_workflow_preset(preset_name, active_steps, *params):
         _initialize_workflow_presets()
         return gr.update(), gr.update(value=preset_name), tb_update_messages()
 
+    except Exception as e:
+        tb_message_mgr.add_error(f"Error saving workflow preset '{clean_name}': {e}")
+        # Revert to last known good state
+        _initialize_workflow_presets()
+        return gr.update(), gr.update(value=preset_name), tb_update_messages()
+
 def tb_handle_load_workflow_preset(preset_name):
     tb_message_mgr.clear()
     preset_data = tb_workflow_presets_data.get(preset_name)
@@ -557,8 +566,10 @@ def tb_handle_load_workflow_preset(preset_name):
         # Upscale
         final_params["upscale_model"], final_params["upscale_factor"], final_params["tile_size"],
         final_params["enhance_face"], final_params["denoise_strength"],
+        final_params["upscale_use_streaming"],
         # Frame Adjust
         final_params["fps_mode"], final_params["speed_factor"],
+        final_params["frames_use_streaming"],
         # Loop
         final_params["loop_type"], final_params["num_loops"],
         # Filters (must be in the same order as _ORDERED_FILTER_SLIDERS_)
@@ -580,18 +591,20 @@ def tb_handle_delete_workflow_preset(preset_name):
 
     if not preset_name or not preset_name.strip():
         tb_message_mgr.add_warning("No workflow preset name provided to delete.")
-        # Return updates for all components, but change nothing
-        return gr.update(), gr.update(), *([gr.update()] * 23), tb_update_messages()
+        # The number of outputs for an event handler MUST be consistent.
+        # There are 28 outputs: dropdown, namebox, chkbox, 24 params, message.
+        # The star-expansion covers the chkbox (1) + params (24) = 25 components.
+        return gr.update(), gr.update(), *([gr.update()] * 25), tb_update_messages()
 
 
     clean_name = preset_name.strip()
     if clean_name == "None":
         tb_message_mgr.add_warning("'None' preset cannot be deleted.")
-        return gr.update(value="None"), gr.update(), *([gr.update()] * 23), tb_update_messages()
+        return gr.update(value="None"), gr.update(), *([gr.update()] * 25), tb_update_messages()
 
     if clean_name not in tb_workflow_presets_data:
         tb_message_mgr.add_warning(f"Workflow preset '{clean_name}' not found.")
-        return gr.update(), gr.update(), *([gr.update()] * 23), tb_update_messages()
+        return gr.update(), gr.update(), *([gr.update()] * 25), tb_update_messages()
 
     del tb_workflow_presets_data[clean_name]
 
@@ -613,7 +626,7 @@ def tb_handle_delete_workflow_preset(preset_name):
         tb_message_mgr.add_error(f"Error deleting workflow preset '{clean_name}': {e}")
         _initialize_workflow_presets() # Revert
         # On error, we don't know the state, so just update the messages
-        return gr.update(), gr.update(value=clean_name), *([gr.update()] * 23), tb_update_messages()
+        return gr.update(), gr.update(value=clean_name), *([gr.update()] * 25), tb_update_messages()
 
 def tb_handle_reset_workflow_to_defaults():
     # This function loads the 'None' preset to get the reset values for most components...
