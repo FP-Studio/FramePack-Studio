@@ -878,6 +878,9 @@ def worker(
             # if magcache is not None and magcache.is_enabled:
             #     print(f"MagCache skipped: {len(magcache.steps_skipped_list)} of {steps} steps: {magcache.steps_skipped_list}")
 
+            if model_type in ("Original", "Original with Endframe") and is_last_section:
+                generated_latents = torch.cat([start_latent.to(generated_latents), generated_latents], dim=2)
+            
             total_generated_latent_frames += int(generated_latents.shape[2])
             # Update history latents using the generator
             history_latents = studio_module.current_generator.update_history_latents(history_latents, generated_latents)
