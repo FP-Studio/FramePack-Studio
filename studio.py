@@ -16,7 +16,8 @@ import datetime
 from modules.version import APP_VERSION
 
 # Set environment variables
-os.environ['HF_HOME'] = os.path.abspath(os.path.realpath(os.path.join(os.path.dirname(__file__), './hf_download')))
+if not os.getenv('HF_HOME'):
+    os.environ['HF_HOME'] = os.path.abspath(os.path.realpath(os.path.join(os.path.dirname(__file__), './hf_download')))
 os.environ['TOKENIZERS_PARALLELISM'] = 'false'  # Prevent tokenizers parallelism warning
 
 
@@ -40,7 +41,7 @@ from diffusers_helper import lora_utils
 from diffusers_helper.lora_utils import load_lora, unload_all_loras
 
 # Import model generators
-from modules.generators import create_model_generator
+from modules.generators import create_model_generator, base_generator
 
 # Global cache for prompt embeddings
 prompt_embedding_cache = {}
@@ -52,6 +53,7 @@ from modules.settings import Settings
 from modules import DUMMY_LORA_NAME # Import the constant
 from modules.pipelines.metadata_utils import create_metadata
 from modules.pipelines.worker import worker
+from typing import cast
 
 # Try to suppress annoyingly persistent Windows asyncio proactor errors
 if os.name == 'nt':  # Windows only
@@ -115,7 +117,7 @@ parser.add_argument("--port", type=int, required=False)
 parser.add_argument("--inbrowser", action='store_true')
 parser.add_argument("--lora", type=str, default=None, help="Lora path (comma separated for multiple)")
 parser.add_argument("--offline", action='store_true', help="Run in offline mode")
-args = parser.parse_args()
+args, unknown = parser.parse_known_args()
 
 print(args)
 
@@ -141,9 +143,6 @@ vae = AutoencoderKLHunyuanVideo.from_pretrained("hunyuanvideo-community/HunyuanV
 
 feature_extractor = SiglipImageProcessor.from_pretrained("lllyasviel/flux_redux_bfl", subfolder='feature_extractor')
 image_encoder = SiglipVisionModel.from_pretrained("lllyasviel/flux_redux_bfl", subfolder='image_encoder', torch_dtype=torch.float16).cpu()
-
-# Initialize model generator placeholder
-current_generator = None # Will hold the currently active model generator
 
 # Load models based on VRAM availability later
  
@@ -237,52 +236,9 @@ else:
 # Create job queue
 job_queue = VideoJobQueue()
 
-
-
 # Function to load a LoRA file
 def load_lora_file(lora_file: str | PurePath):
-    if not lora_file:
-        return None, "No file selected"
-    
-    try:
-        # Get the filename from the path
-        lora_path = PurePath(lora_file)
-        lora_name = lora_path.name
-        
-        # Copy the file to the lora directory
-        lora_dest = PurePath(lora_dir, lora_path)
-        import shutil
-        shutil.copy(lora_file, lora_dest)
-        
-        # Load the LoRA
-        global current_generator, lora_names
-        if current_generator is None:
-            return None, "Error: No model loaded to apply LoRA to. Generate something first."
-        
-        # Unload any existing LoRAs first
-        current_generator.unload_loras()
-        
-        # Load the single LoRA
-        selected_loras = [lora_path.stem]
-        current_generator.load_loras(selected_loras, lora_dir, selected_loras)
-        
-        # Add to lora_names if not already there
-        lora_base_name = lora_path.stem
-        if lora_base_name not in lora_names:
-            lora_names.append(lora_base_name)
-        
-        # Get the current device of the transformer
-        device = next(current_generator.transformer.parameters()).device
-        
-        # Move all LoRA adapters to the same device as the base model
-        current_generator.move_lora_adapters_to_device(device)
-        
-        print(f"Loaded LoRA: {lora_name} to {current_generator.get_model_name()} model")
-        
-        return gr.update(choices=lora_names), f"Successfully loaded LoRA: {lora_name}"
-    except Exception as e:
-        print(f"Error loading LoRA: {e}")
-        return None, f"Error loading LoRA: {e}"
+    raise NotImplementedError("This function is not used.")
 
 @torch.no_grad()
 def get_cached_or_encode_prompt(prompt, text_encoder, text_encoder_2, tokenizer, tokenizer_2, target_device):
@@ -695,11 +651,12 @@ interface = create_interface(
     lora_names=lora_names # Explicitly pass the found LoRA names
 )
 
-# Launch the interface
-interface.launch(
-    server_name=args.server,
-    server_port=args.port,
-    share=args.share,
-    inbrowser=args.inbrowser,
-    allowed_paths=[settings.get("output_dir"), settings.get("metadata_dir")],
-)
+if __name__ == "__main__":
+    # Launch the interface
+    interface.launch(
+        server_name=args.server,
+        server_port=args.port,
+        share=args.share,
+        inbrowser=args.inbrowser,
+        allowed_paths=[settings.get("output_dir"), settings.get("metadata_dir")],
+    )

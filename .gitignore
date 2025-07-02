@@ -6,6 +6,7 @@ input_files/
 queue_images/
 modules/toolbox/model_esrgan/
 modules/toolbox/model_rife/
+modules/toolbox/model_*/**/*.pth
 .framepack/
 modules/toolbox/data/
 modules/toolbox/bin
