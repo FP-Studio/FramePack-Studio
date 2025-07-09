@@ -6,6 +6,7 @@ import os
 import zipfile
 import shutil
 from dataclasses import dataclass, field
+from collections.abc import Callable
 from enum import Enum
 from typing import Dict, Any, Optional, List
 import queue as queue_module  # Renamed to avoid conflicts
@@ -70,7 +71,7 @@ class Job:
     result: Optional[str] = None
     progress_data: Optional[Dict] = None
     queue_position: Optional[int] = None
-    stream: Optional[Any] = None
+    stream: Optional[AsyncStream] = None
     input_image: Optional[np.ndarray] = None
     latent_type: Optional[str] = None
     thumbnail: Optional[str] = None
@@ -286,19 +287,37 @@ class Job:
             img.save(buffered, format="PNG")
             self.thumbnail = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode()}"
 
+class SnapshotQueue(queue_module.Queue):
+    def snapshot(self):
+        with self.mutex:
+            return list(self.queue)
+        
+    def peek(self):
+        snapshot = self.snapshot()
+        if snapshot:
+            return snapshot[0]
+        return None
 
 class VideoJobQueue:
+    _instance: Optional['VideoJobQueue'] = None
+    
     def __init__(self):
-        self.queue = queue_module.Queue()  # Using standard Queue instead of LifoQueue
-        self.jobs = {}
+        self.queue = SnapshotQueue()  # Using standard Queue with Snapshot instead of LifoQueue
+        self.jobs: dict[str, Job] = {}
         self.current_job = None
         self.lock = threading.Lock()
         self.worker_thread = threading.Thread(target=self._worker_loop, daemon=True)
         self.worker_thread.start()
-        self.worker_function = None  # Will be set from outside
+        self.worker_function: Callable[..., None] | None = None # Will be set from outside
         self.is_processing = False  # Flag to track if we're currently processing a job
+
+    def __new__(cls):
+        if cls._instance is None:
+            print('Creating the VideoJobQueue instance')
+            cls._instance = super(VideoJobQueue, cls).__new__(cls)
+        return cls._instance
     
-    def set_worker_function(self, worker_function):
+    def set_worker_function(self, worker_function: Callable[..., None]):
         """Set the worker function to use for processing jobs"""
         self.worker_function = worker_function
     
@@ -684,7 +703,10 @@ class VideoJobQueue:
     
     def add_job(self, params, job_type=JobType.SINGLE, child_job_params_list=None, parent_job_id=None):
         """Add a job to the queue and return its ID"""
-        job_id = str(uuid.uuid4())
+        # sortable time UUID
+        # get back the datetime with datetime.datetime(1582, 10, 15) + datetime.timedelta(microseconds=uuid.UUID(str(job_id)).time//10)
+        # which should roughly correspond to the time stored in created_at
+        job_id = str(uuid.uuid1())
         
         # For grid jobs, create child jobs first
         child_job_ids = []

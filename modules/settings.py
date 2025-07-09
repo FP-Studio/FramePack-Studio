@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 import os
 
+
 class Settings:
     def __init__(self):
         # Get the project root directory (where settings.py is located)
@@ -34,7 +35,9 @@ class Settings:
 
 User prompt: "{text_to_enhance}"
 
-Enhanced prompt:"""
+Enhanced prompt:""",
+            "fp8": False,
+            "kohya_ss_lora_support": True,
         }
         self.settings = self.load_settings()
 
