@@ -4,6 +4,10 @@ from typing import Dict, Any, Optional
 import os
 
 class Settings:
+    """Singleton class to manage application settings."""
+
+    _instance: Optional['Settings'] = None
+
     def __init__(self):
         # Get the project root directory (where settings.py is located)
         project_root = Path(__file__).parent.parent
@@ -37,6 +41,12 @@ User prompt: "{text_to_enhance}"
 Enhanced prompt:"""
         }
         self.settings = self.load_settings()
+
+    def __new__(cls):
+        if cls._instance is None:
+            print('Creating the Settings instance')
+            cls._instance = super(Settings, cls).__new__(cls)
+        return cls._instance
 
     def load_settings(self) -> Dict[str, Any]:
         """Load settings from file or return defaults"""
