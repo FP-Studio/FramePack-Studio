@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from typing import Dict, Any, Optional
 import os
+from diffusers_helper.lora_utils_kohya_ss.enums import LoraLoader
 
 class Settings:
     """Singleton class to manage application settings."""
@@ -38,7 +39,9 @@ class Settings:
 
 User prompt: "{text_to_enhance}"
 
-Enhanced prompt:"""
+Enhanced prompt:""",
+            "lora_loader": LoraLoader.DEFAULT, # lora_loader options: diffusers, lora_ready. DEFAULT is existing behavior of diffusers
+            "reuse_model_instance": False, # Reuse model instance across generations - default of False is existing behavior
         }
         self.settings = self.load_settings()
 
@@ -47,6 +50,23 @@ Enhanced prompt:"""
             print('Creating the Settings instance')
             cls._instance = super(Settings, cls).__new__(cls)
         return cls._instance
+
+    @property
+    def lora_loader(self) -> LoraLoader:
+        return LoraLoader.safe_parse(self.settings.get("lora_loader", LoraLoader.DEFAULT))
+
+    @lora_loader.setter
+    def lora_loader(self, value: str | LoraLoader):
+        if not value:
+            value = LoraLoader.DEFAULT
+        if isinstance(value, str):
+            value = LoraLoader.safe_parse(value)
+
+        self.set("lora_loader", value)
+
+    @property
+    def reuse_model_instance(self) -> bool:
+        return self.settings.get("reuse_model_instance", False)
 
     def load_settings(self) -> Dict[str, Any]:
         """Load settings from file or return defaults"""
