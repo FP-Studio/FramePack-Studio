@@ -23,7 +23,7 @@ def load_and_apply_lora(
         model_files: List of model files to load
         lora_paths: List of LoRA file paths
         lora_scales: List if LoRA weight scales
-        fp8_enabled: Whether to enable FP8 optimization. Default is False.
+        fp8_enabled: Whether to enable FP8 optimization. Default is False. This requires fp8 model_files.
         device: Device used for loading the model. If None, defaults to CPU.
 
     Returns:
