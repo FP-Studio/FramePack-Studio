@@ -1390,25 +1390,24 @@ class VideoProcessor:
                 ffmpeg_cmd = [
                     self.ffmpeg_exe, "-y", "-loglevel", "error",
                     "-stream_loop", str(num_loops - 1), # Loop the video unit N-1 times (total N plays)
-                    "-i", ping_pong_unit_path,
-                    "-c:v", "copy"
+                    "-i", ping_pong_unit_path
                 ]
+
                 if original_video_has_audio:
                     self.message_manager.add_message("Original video has audio. Will loop audio for ping-pong.")
-                    # Audio duration needs to match 2T * num_loops. FFmpeg aloop is complex.
-                    # A simpler approach for ping-pong audio might be to create a 2T audio segment (original + reversed original)
-                    # then loop that audio segment N times and mux with the N-times looped ping-pong video.
-                    # Current FFmpeg command for aloop:
-                    audio_loop_count_for_ffmpeg = (num_loops * 2) -1 # Total plays of original audio needed, minus one for initial play by -i
+                    # Audio duration needs to match 2T * num_loops.
+                    audio_loop_count_for_ffmpeg = (num_loops * 2) - 1 # Total plays of original audio needed, minus one for initial play by -i
                     ffmpeg_cmd.extend([
                         "-i", resolved_video_path, # Original video for audio source
                         "-filter_complex", f"[1:a]areverse[areva];[1:a][areva]concat=n=2:v=0:a=1[ppa];[ppa]aloop=loop={num_loops-1}:size=2147483647[a_looped]",
                         "-map", "0:v:0", "-map", "[a_looped]",
+                        "-c:v", "copy",
                         "-c:a", "aac", "-b:a", "192k", "-shortest"
                     ])
                 else:
                     self.message_manager.add_message("No audio in original or detection issue. Creating video-only ping-pong loop.")
-                    ffmpeg_cmd.extend(["-an"])
+                    ffmpeg_cmd.extend(["-c:v", "copy", "-an"])
+
                 ffmpeg_cmd.append(output_path)
 
             else: # Regular 'loop'

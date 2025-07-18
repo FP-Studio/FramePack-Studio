@@ -878,6 +878,9 @@ def worker(
             # if magcache is not None and magcache.is_enabled:
             #     print(f"MagCache skipped: {len(magcache.steps_skipped_list)} of {steps} steps: {magcache.steps_skipped_list}")
 
+            if model_type in ("Original", "Original with Endframe") and has_input_image and is_last_section:
+                generated_latents = torch.cat([start_latent.to(generated_latents), generated_latents], dim=2)
+            
             total_generated_latent_frames += int(generated_latents.shape[2])
             # Update history latents using the generator
             history_latents = studio_module.current_generator.update_history_latents(history_latents, generated_latents)
@@ -894,7 +897,7 @@ def worker(
             if history_pixels is None:
                 history_pixels = vae_decode(real_history_latents, vae).cpu()
             else:
-                section_latent_frames = studio_module.current_generator.get_section_latent_frames(latent_window_size, is_last_section)
+                section_latent_frames = (latent_window_size * 2 + 1) if model_type in ("Original", "Original with Endframe") and has_input_image and is_last_section else studio_module.current_generator.get_section_latent_frames(latent_window_size, is_last_section)
                 overlapped_frames = latent_window_size * 4 - 3
 
                 # Get current pixels using the generator
