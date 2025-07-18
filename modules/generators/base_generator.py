@@ -1,9 +1,18 @@
 import torch
 import os # required for os.path
 from abc import ABC, abstractmethod
+from dataclasses import asdict
 from diffusers_helper import lora_utils
-from typing import List, Optional
+from typing import List, Optional, cast
 from pathlib import Path
+
+from diffusers_helper.lora_utils_kohya_ss.enums import LoraLoader
+from diffusers_helper.models.hunyuan_video_packed import HunyuanVideoTransformer3DModelPacked
+
+from ..settings import Settings
+from .model_configuration import ModelConfiguration
+
+# cSpell: ignore loras
 
 class BaseModelGenerator(ABC):
     """
@@ -21,7 +30,7 @@ class BaseModelGenerator(ABC):
                  feature_extractor, 
                  high_vram=False,
                  prompt_embedding_cache=None,
-                 settings=None,
+                 settings: Settings | None = None,
                  offline=False): # NEW: offline flag
         """
         Initialize the base model generator.
@@ -39,6 +48,10 @@ class BaseModelGenerator(ABC):
             settings: Application settings
             offline: Whether to run in offline mode for model loading
         """
+        self.model_name: str
+        self.model_path: str
+        self.model_repo_id_for_cache: str
+
         self.text_encoder = text_encoder
         self.text_encoder_2 = text_encoder_2
         self.tokenizer = tokenizer
@@ -48,28 +61,67 @@ class BaseModelGenerator(ABC):
         self.feature_extractor = feature_extractor
         self.high_vram = high_vram
         self.prompt_embedding_cache = prompt_embedding_cache or {}
-        self.settings = settings
+        self.settings: Settings = settings if settings is not None else Settings()
         self.offline = offline 
         self.transformer = None
         self.gpu = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.cpu = torch.device("cpu")
 
+        self.previous_model_hash: str = ""
+        self.previous_model_configuration: ModelConfiguration | None = None
             
     @abstractmethod
-    def load_model(self):
+    def load_model(self) -> HunyuanVideoTransformer3DModelPacked:
         """
         Load the transformer model.
-        This method should be implemented by each specific model generator.
         """
+        # this load_model function has the same implementation in all subclasses
+        # candidate for consolidation to directly implement here in the base class
         pass
     
     @abstractmethod
-    def get_model_name(self):
+    def get_model_name(self) -> str:
         """
         Get the name of the model.
         This method should be implemented by each specific model generator.
         """
+        # this get_model_name function has the same implementation in all subclasses
+        # candidate for consolidation to directly implement here in the base class
         pass
+
+    @abstractmethod
+    def get_latent_paddings(self, total_latent_sections) -> list[int]:
+        raise NotImplementedError(
+            "get_latent_paddings must be implemented by the specific model generator subclass.")
+
+    @abstractmethod
+    def format_position_description(self, total_generated_latent_frames, current_pos, original_pos, current_prompt) -> str:
+        raise NotImplementedError(
+            "format_position_description must be implemented by the specific model generator subclass.")
+
+    @abstractmethod
+    def get_real_history_latents(self, history_latents: torch.Tensor, total_generated_latent_frames: int) -> torch.Tensor:
+        """
+        Get the real history latents by slicing the history latents tensor.
+        """
+        raise NotImplementedError(
+            "get_real_history_latents must be implemented by the specific model generator subclass.")
+
+    @abstractmethod
+    def update_history_latents(self, history_latents: torch.Tensor, generated_latents: torch.Tensor) -> torch.Tensor:
+        """
+        Update the history latents with the generated latents.
+        This method should be implemented by each specific model generator.
+
+        Args:
+            history_latents: The history latents
+            generated_latents: The generated latents
+
+        Returns:
+            The updated history latents
+        """
+        raise NotImplementedError(
+            "update_history_latents must be implemented by the specific model generator subclass.")
 
     @staticmethod
     def _get_snapshot_hash_from_refs(model_repo_id_for_cache: str) -> str | None:
@@ -109,10 +161,12 @@ class BaseModelGenerator(ABC):
         if not hasattr(self, 'model_repo_id_for_cache') or not self.model_repo_id_for_cache:
             print(f"Warning: model_repo_id_for_cache not set in {self.__class__.__name__}. Cannot determine offline path.")
             # Fallback to model_path if it exists, otherwise None
-            return getattr(self, 'model_path', None) 
+            return str(getattr(self, 'model_path', None))
 
         if not hasattr(self, 'model_path') or not self.model_path:
             print(f"Warning: model_path not set in {self.__class__.__name__}. Cannot determine fallback for offline path.")
+            # raise error instead of returning None?
+            # raise ValueError(f"{self.__class__.__name__} must set model_path for offline loading.")
             return None
 
         snapshot_hash = self._get_snapshot_hash_from_refs(self.model_repo_id_for_cache)
@@ -222,6 +276,25 @@ class BaseModelGenerator(ABC):
         
         print(f"Moved all LoRA adapters to {target_device}")
     
+    def __compute_lora_state_hash(self, lora_config: ModelConfiguration) -> str:
+        """
+        Compute a simple hash representing the current state of LoRA adapters in the transformer.
+        This can be used to detect changes in loaded LoRAs.
+        """
+        import hashlib
+        # md5 should be sufficient for this purpose
+        m = hashlib.md5()
+
+        if self.transformer is None:
+            # Should not happen - return a unique value
+            print("Warning: Transformer is None when computing LoRA state hash.")
+            from time import time
+            m.update(str(time() * 1000).encode('utf-8'))
+
+        import json
+        m.update(json.dumps(asdict(lora_config), sort_keys=True).encode('utf-8'))
+        return m.hexdigest()
+
     def load_loras(self, selected_loras: List[str], lora_folder: str, lora_loaded_names: List[str], lora_values: Optional[List[float]] = None):
         """
         Load LoRAs into the transformer model and applies their weights.
@@ -232,14 +305,116 @@ class BaseModelGenerator(ABC):
             lora_loaded_names: The master list of ALL available LoRA names, used for correct weight indexing.
             lora_values: A list of strength values corresponding to lora_loaded_names.
         """
-        self.unload_loras()
-
         if not selected_loras:
+            # Only unload at this point if no LoRAs are selected
+            self.unload_loras()
             print("No LoRAs selected, skipping loading.")
             return
 
+        if self.transformer is None:
+            print("Transformer model is None, cannot load LoRAs.")
+            return
+
+        if lora_values is None:
+            lora_values = []
+
+        selected_lora_values = [lora_values[lora_loaded_names.index(name)] for name in selected_loras if name in lora_loaded_names]
+        print(f"Loading LoRAs: {selected_loras} with values: {selected_lora_values}")
+
+        active_model_configuration = ModelConfiguration.from_lora_names_and_weights(
+            self.get_model_name(),
+            selected_loras,
+            selected_lora_values,
+            self.settings.lora_loader
+        )
+
+        active_model_hash = self.__compute_lora_state_hash(active_model_configuration)
+        if active_model_hash == self.previous_model_hash:
+            # This can only happen if the model is not changed
+            # When the model is loaded we will always have the default previous_model_hash value
+            # The only time that this can happen is when settings.reuse_model_instance is True
+            # and the model is not changed, and the LoRAs are not changed.
+            print("Model configuration unchanged, skipping reload.")
+            return
+
+        print(f"Previous LoRA config: {self.previous_model_configuration}, Current LoRA config: {active_model_configuration}")
+        print(f"Previous LoRA hash: {self.previous_model_hash}, Current LoRA hash: {active_model_hash}")
+
+        self.previous_model_hash = active_model_hash
+        self.previous_model_configuration = active_model_configuration
+
         lora_dir = Path(lora_folder)
 
+        if self.settings.lora_loader == LoraLoader.LORA_READY:
+            from diffusers_helper.lora_utils_kohya_ss.lora_loader import load_and_apply_lora
+            from diffusers_helper.lora_utils_kohya_ss.lora_check_helper import print_lora_status
+            print(f"Loading LoRAs using kohya_ss LoRAReady loader from {lora_dir}")
+
+            def _find_model_files(model_path):
+                """Get state dictionary file from specified model path
+                This is undesirable as it depends on Diffusers implementation."""
+                import glob
+                model_root = os.environ['HF_HOME']  # './hf_download'?
+                subdir = os.path.join(model_root, 'hub', 'models--' + model_path.replace('/', '--'))
+                model_files = glob.glob(os.path.join(subdir, '**', '*.safetensors'), recursive=True) + glob.glob(os.path.join(subdir, '**', '*.pt'), recursive=True)
+                model_files.sort()
+                return model_files
+            try:
+                model_files = _find_model_files(self.model_path)
+                print(f"LoRA -> Found model files: {model_files}")
+                lora_paths = [
+                    # not sure why the full path is not passed around and potentially trimmed for the interface display
+                    str(lora_dir / f"{lora_setting.name}.safetensors")
+                    if Path(lora_dir / f"{lora_setting.name}.safetensors").exists()
+                    else str(lora_dir / f"{lora_setting.name}.pt")  # hopefully .pt is the correct extension.
+                    for lora_setting in active_model_configuration.settings.lora_settings
+                ]
+                lora_scales: list[float] = [lora_setting.weight for lora_setting in active_model_configuration.settings.lora_settings]
+                print(f'Lora paths: {lora_paths}')
+                if not lora_paths:
+                    raise ValueError("No valid LoRA paths found for the selected LoRAs.")
+
+                state_dict = load_and_apply_lora(
+                    model_files=model_files,
+                    lora_paths=lora_paths,
+                    lora_scales=lora_scales,
+                    fp8_enabled=cast(bool, self.settings.get("fp8", False)),
+                    device=self.gpu if torch.cuda.is_available() else self.cpu
+                )
+                print("Loading state dict into transformer...")
+                missing_keys, unexpected_keys = self.transformer.load_state_dict(state_dict, assign=True, strict=True)
+
+                if missing_keys:
+                    print(f"Warning: Missing keys when loading LoRA state dict: {missing_keys}")
+                if unexpected_keys:
+                    print(f"Warning: Unexpected keys when loading LoRA state dict: {unexpected_keys}")
+
+                state_dict_size: int = 0
+                try:
+                    state_dict_size = sum(param.numel() * param.element_size()
+                                          for param in state_dict.values() if hasattr(param, 'numel'))
+                    print(f"State dictionary size: {state_dict_size / (1024**3):.2f} GB")
+                except:
+                    pass
+
+                try:
+                    del state_dict
+                    import gc
+                    gc.collect()
+                    print(f"Freed state dictionary size: {state_dict_size / (1024**3):.2f} GB")
+                except:
+                    print("Could not free state dictionary from memory.")
+
+            except Exception as e:
+                import traceback
+                print(f"Error loading LoRAs with kohya_ss LoRAReady loader: {e}")
+                traceback.print_exc()
+            return
+
+        if self.settings.lora_loader != LoraLoader.DIFFUSERS:
+            raise NotImplementedError("Unsupported LoRA loader: {}".format(self.settings.lora_loader))
+
+        self.unload_loras()
         adapter_names = []
         strengths = []
 
