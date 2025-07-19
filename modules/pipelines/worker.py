@@ -1,5 +1,4 @@
 import os
-import json
 import time
 import traceback
 import einops
@@ -7,14 +6,11 @@ import numpy as np
 import torch
 import datetime
 from PIL import Image
-from PIL.PngImagePlugin import PngInfo
 from diffusers_helper.models.mag_cache import MagCache
 from diffusers_helper.utils import save_bcthw_as_mp4, generate_timestamp, resize_and_center_crop
 from diffusers_helper.memory import cpu, gpu, move_model_to_device_with_memory_preservation, offload_model_from_device_for_memory_preservation, fake_diffusers_current_device, unload_complete_models, load_model_as_complete
-from diffusers_helper.thread_utils import AsyncStream
 from diffusers_helper.gradio.progress_bar import make_progress_bar_html
 from diffusers_helper.hunyuan import vae_decode
-from modules.video_queue import JobStatus
 from modules.prompt_handler import parse_timestamped_prompt
 from modules.generators import create_model_generator
 from modules.pipelines.video_tools import combine_videos_sequentially_from_tensors
@@ -22,8 +18,9 @@ from modules import DUMMY_LORA_NAME # Import the constant
 from modules.llm_captioner import unload_captioning_model
 from modules.llm_enhancer import unload_enhancing_model
 from . import create_pipeline
+from modules.studio_manager import StudioManager
 
-import __main__ as studio_module # Get a reference to the __main__ module object
+# cSpell: disable hunyan, loras
 
 @torch.no_grad()
 def get_cached_or_encode_prompt(prompt, text_encoder, text_encoder_2, tokenizer, tokenizer_2, target_device, prompt_embedding_cache):
@@ -79,7 +76,7 @@ def worker(
     latent_type,
     selected_loras,
     has_input_image,
-    lora_values=None, 
+    lora_values: list[float] = [],
     job_stream=None,
     output_dir=None,
     metadata_dir=None,
@@ -118,8 +115,12 @@ def worker(
     print(f"Worker: Selected LoRAs for this worker: {selected_loras}")
     
     # Import globals from the main module
-    from __main__ import high_vram, args, text_encoder, text_encoder_2, tokenizer, tokenizer_2, vae, image_encoder, feature_extractor, prompt_embedding_cache, settings, stream
-    
+    from __main__ import high_vram, args, text_encoder, text_encoder_2, tokenizer, tokenizer_2, vae, image_encoder, feature_extractor, prompt_embedding_cache, stream
+
+    studio_module = StudioManager()
+    settings = studio_module.settings
+    job_queue = studio_module.job_queue
+
     # Ensure any existing LoRAs are unloaded from the current generator
     if studio_module.current_generator is not None:
         print("Worker: Unloading LoRAs from studio_module.current_generator")
@@ -155,7 +156,6 @@ def worker(
     # Store initial progress data in the job object if using a job stream
     if job_stream is not None:
         try:
-            from __main__ import job_queue
             job = job_queue.get_job(job_id)
             if job:
                 job.progress_data = initial_progress_data
@@ -197,6 +197,7 @@ def worker(
         pipeline = create_pipeline(model_type, pipeline_settings)
         
         # Create job parameters dictionary
+        # job_params should be defined outside of the try/catch scope
         job_params = {
             'model_type': model_type,
             'input_image': input_image,
@@ -251,7 +252,13 @@ def worker(
         # --- Model Loading / Switching ---
         print(f"Worker starting for model type: {model_type}")
         print(f"Worker: Before model assignment, studio_module.current_generator is {type(studio_module.current_generator)}, id: {id(studio_module.current_generator)}")
-        
+
+        # force_new_generator will be True in any of these conditions:
+        # - settings.reuse_model_instance is False
+        # - the model type has changed
+        # - the LoRAs have changed (i.e., selected_loras or lora_values are different)
+        force_new_generator = studio_module.is_reload_required(model_name=model_type, selected_loras=selected_loras, lora_values=lora_values, lora_loaded_names=lora_loaded_names)
+
         # Create the appropriate model generator
         new_generator = create_model_generator(
             model_type,
@@ -266,21 +273,27 @@ def worker(
             prompt_embedding_cache=prompt_embedding_cache,
             offline=args.offline,
             settings=settings
-        )
-        
-        # Update the global generator
-        # This modifies the 'current_generator' attribute OF THE '__main__' MODULE OBJECT
-        studio_module.current_generator = new_generator
-        print(f"Worker: AFTER model assignment, studio_module.current_generator is {type(studio_module.current_generator)}, id: {id(studio_module.current_generator)}")
-        if studio_module.current_generator:
-             print(f"Worker: studio_module.current_generator.transformer is {type(studio_module.current_generator.transformer)}")        
-             
-        # Load the transformer model
-        studio_module.current_generator.load_model()
-        
-        # Ensure the model has no LoRAs loaded
-        print(f"Ensuring {model_type} model has no LoRAs loaded")
-        studio_module.current_generator.unload_loras()
+        ) if force_new_generator else None # settings is now a singleton and the Base Model is setup to get the instance if this is not provided - candidate for removal
+
+        if new_generator is not None:
+            studio_module.current_generator = new_generator
+            # Load the transformer model
+            # load_model() should be called in the setter for current_generator
+            studio_module.current_generator.load_model()  # type ignore
+
+        # Ensure the generator is loaded
+        assert (studio_module.current_generator is not None), "current_generator should not be None after model assignment"
+
+        # Ensure the transformer is loaded
+        assert (studio_module.current_generator.transformer is not None), "current_generator.transformer should not be None after model assignment. load_model() must be called once."
+
+        # Update the model state with the generator and current model configuration, which is used for determining if a reload is needed in future calls
+        studio_module.update_model_state(selected_loras=selected_loras, lora_values=lora_values, lora_loaded_names=lora_loaded_names)
+
+        if force_new_generator or new_generator is not None:
+            # Ensure the model has no LoRAs loaded
+            print(f"Ensuring {model_type} model has no LoRAs loaded")
+            studio_module.current_generator.unload_loras()
 
         # Preprocess inputs
         stream_to_use.output_queue.push(('progress', (None, '', make_progress_bar_html(0, 'Preprocessing inputs...'))))
@@ -296,6 +309,7 @@ def worker(
                 # Import the save_job_start_image function from metadata_utils
                 from modules.pipelines.metadata_utils import save_job_start_image, create_metadata
                 
+                # metadata_dict is not used - candidate for removal as save_job_start_image calls the same function internally
                 # Create comprehensive metadata for the job
                 metadata_dict = create_metadata(job_params, job_id, settings)
                 
@@ -557,7 +571,7 @@ def worker(
             elif model_type == "Original" or model_type == "Original with Endframe":
                 total_generated_latent_frames = 0
 
-        history_pixels = None
+        history_pixels: torch.Tensor | None = None
         
         # Get latent paddings from the generator
         latent_paddings = studio_module.current_generator.get_latent_paddings(total_latent_sections)
@@ -567,13 +581,19 @@ def worker(
 
         # Load LoRAs if selected
         if selected_loras:
+            stream_to_use.output_queue.push(('progress', (None, '', make_progress_bar_html(0, f'Loading LoRA{"s" if len(selected_loras) > 1 else ""} ...'))))
             lora_folder_from_settings = settings.get("lora_dir")
             studio_module.current_generator.load_loras(selected_loras, lora_folder_from_settings, lora_loaded_names, lora_values)
 
             # --- Callback for progress ---
         def callback(d):
-            nonlocal last_step_time, step_durations
-            
+            nonlocal last_step_time, step_durations, history_pixels, job_params
+            studio_module = StudioManager()
+
+            if studio_module.current_generator is None:
+                print("Worker callback: current_generator is None, cannot process progress update.")
+                return
+
             # Check for cancellation signal
             if stream_to_use.input_queue.top() == 'end':
                 print("Cancellation signal detected in callback")
@@ -652,7 +672,7 @@ def worker(
             # Store progress data in the job object if using a job stream
             if job_stream is not None:
                 try:
-                    from __main__ import job_queue
+                    job_queue = studio_module.job_queue
                     job = job_queue.get_job(job_id)
                     if job:
                         job.progress_data = progress_data
@@ -838,6 +858,7 @@ def worker(
             if not high_vram:
                 # Unload VAE etc. before loading transformer
                 unload_complete_models(vae, text_encoder, text_encoder_2, image_encoder)
+                stream_to_use.output_queue.push(('progress', (None, '', make_progress_bar_html(0, f'Moving model to GPU ...'))))
                 move_model_to_device_with_memory_preservation(studio_module.current_generator.transformer, target_device=gpu, preserved_memory_gb=settings.get("gpu_memory_preservation"))
                 if selected_loras:
                     studio_module.current_generator.move_lora_adapters_to_device(gpu)
@@ -937,6 +958,7 @@ def worker(
             magcache = None
 
         # Handle the results
+        # handle_results does not seem to do anything and we do not do anything with the result
         result = pipeline.handle_results(job_params, output_filename)
 
         # Unload all LoRAs after generation completed
@@ -1124,30 +1146,9 @@ def worker(
             except Exception as e:
                 print(f"Error creating combined video ({job_id}_combined.mp4): {e}")
                 traceback.print_exc()
-    
     # Final verification of LoRA state
     if studio_module.current_generator and studio_module.current_generator.transformer:
-        # Verify LoRA state
-        has_loras = False
-        if hasattr(studio_module.current_generator.transformer, 'peft_config'):
-            adapter_names = list(studio_module.current_generator.transformer.peft_config.keys()) if studio_module.current_generator.transformer.peft_config else []
-            if adapter_names:
-                has_loras = True
-                print(f"Transformer has LoRAs: {', '.join(adapter_names)}")
-            else:
-                print(f"Transformer has no LoRAs in peft_config")
-        else:
-            print(f"Transformer has no peft_config attribute")
-            
-        # Check for any LoRA modules
-        for name, module in studio_module.current_generator.transformer.named_modules():
-            if hasattr(module, 'lora_A') and module.lora_A:
-                has_loras = True
-            if hasattr(module, 'lora_B') and module.lora_B:
-                has_loras = True
-                
-        if not has_loras:
-            print(f"No LoRA components found in transformer")
+        studio_module.current_generator.verify_lora_state()
 
     stream_to_use.output_queue.push(('end', None))
     return

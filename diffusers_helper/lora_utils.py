@@ -8,6 +8,7 @@ import torch
 
 FALLBACK_CLASS_ALIASES = {
     "HunyuanVideoTransformer3DModelPacked": "HunyuanVideoTransformer3DModel",
+    "DynamicSwap_HunyuanVideoTransformer3DModelPacked": "HunyuanVideoTransformer3DModel",
 }
 
 def load_lora(transformer: torch.nn.Module, lora_path: Path, weight_name: str) -> Tuple[torch.nn.Module, str]:

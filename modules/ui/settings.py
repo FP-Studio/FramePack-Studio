@@ -1,4 +1,5 @@
 import gradio as gr
+from diffusers_helper.lora_utils_kohya_ss.enums import LoraLoader
 from modules.ui.generate import load_presets
 
 def create_settings_ui(settings, get_latents_display_top, model_type_choices):
@@ -29,6 +30,11 @@ def create_settings_ui(settings, get_latents_display_top, model_type_choices):
             auto_save = gr.Checkbox(label="Auto-save settings", value=settings.get("auto_save_settings", True))
             gradio_themes = ["default", "base", "soft", "glass", "mono", "origin", "citrus", "monochrome", "ocean", "NoCrypt/miku", "earneleh/paris", "gstaff/xkcd"]
             theme_dropdown = gr.Dropdown(label="Theme", choices=gradio_themes, value=settings.get("gradio_theme", "default"), info="Select the Gradio UI theme. Requires restart.")
+            with gr.Accordion("Experimental Settings", open=False):
+                gr.Markdown("These settings are for advanced users. Changing them may affect the performance or functionality of the application.")
+                lora_loader = gr.Dropdown(label="LoRA Loader", choices=[loader.value for loader in LoraLoader], value=settings.lora_loader.value, info="Select the LoRA loader to use. 'diffusers' for Diffusers format, 'lora_ready' for Kohya-ss format.", interactive=True)
+                __reuse_model_instance_warning__ = gr.Markdown("The *Reuse of Model Instance* option may be unstable for lower memory GPUs. If you experience memory pressure or crashes, disable this option.")
+                reuse_model_instance = gr.Checkbox(label="Reuse Model Instance", value=settings.get("reuse_model_instance", False), info="If checked, the model instance will be reused across generations to save reload time when no LoRA changes are detected and the same model is used. If unchecked, a new model instance will be created for each generation.")
             save_btn = gr.Button("💾 Save Settings")
             cleanup_btn = gr.Button("🗑️ Clean Up Temporary Files")
             status = gr.HTML("")
@@ -42,9 +48,11 @@ def create_settings_ui(settings, get_latents_display_top, model_type_choices):
         "reset_system_prompt_btn": reset_system_prompt_btn, "system_prompt_template": system_prompt_template,
         "output_dir": output_dir, "metadata_dir": metadata_dir, "lora_dir": lora_dir,
         "gradio_temp_dir": gradio_temp_dir, "auto_save": auto_save, "theme_dropdown": theme_dropdown,
-        "save_btn": save_btn, "cleanup_btn": cleanup_btn, "status": status, "cleanup_output": cleanup_output
+        "save_btn": save_btn, "cleanup_btn": cleanup_btn, "status": status, "cleanup_output": cleanup_output,
+        "lora_loader": lora_loader, "reuse_model_instance": reuse_model_instance,
     }
 
+# we can avoid passing around settings object into here, as the Settings class is now a singleton. Remove this comment if done.
 def connect_settings_events(s, g, settings, create_latents_layout_update, tb_processor):
     def save_settings_func(*args):
         keys = list(s.keys())
