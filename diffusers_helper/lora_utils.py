@@ -37,7 +37,9 @@ def load_lora(transformer: torch.nn.Module, lora_path: Path, weight_name: str) -
         None,
         None)
 
-    state_dict = _convert_hunyuan_video_lora_to_diffusers(state_dict)
+    is_original_hunyuan_video = any("img_attn_qkv" in k for k in state_dict)
+    if is_original_hunyuan_video:
+        state_dict = _convert_hunyuan_video_lora_to_diffusers(state_dict)
     
     # should weight_name even be Optional[str] or just str?
     # For now, we assume it is never None
@@ -192,3 +194,4 @@ def set_adapters(
     set_weights_and_activate_adapters(transformer, adapter_names, final_weights)
     
     print(f"Adapters {adapter_names} activated with weights {final_weights}.")
+
