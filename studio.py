@@ -5,6 +5,16 @@ import shutil
 import time
 from pathlib import PurePath
 
+
+# Set environment variables
+STUDIO_HF_HOME = os.path.abspath(os.path.realpath(os.path.join(os.path.dirname(__file__), './hf_download')))
+# maybe only set HF_HOME if the directory exists, providing an opt-in migration path for users
+# make sure to document this behavior if the HF_HOME changes in the future
+# Set the HF_HOME to the studio's hf_download directory
+# HF_HOME Must be set to its expected value prior to importing diffusers and transformers
+os.environ['HF_HOME'] = STUDIO_HF_HOME
+os.environ['TOKENIZERS_PARALLELISM'] = 'false'  # Prevent tokenizers parallelism warning
+
 # Site packages
 from diffusers import AutoencoderKLHunyuanVideo
 from transformers import LlamaModel, CLIPTextModel, LlamaTokenizerFast, CLIPTokenizer
@@ -28,13 +38,7 @@ from modules.studio_manager import StudioManager
 from modules.ui.queue import format_queue_status
 from modules.video_queue import JobStatus
 
-# Set environment variables
-STUDIO_HF_HOME = os.path.abspath(os.path.realpath(os.path.join(os.path.dirname(__file__), './hf_download')))
-# maybe only set HF_HOME if the directory exists, providing an opt-in migration path for users
-# make sure to document this behavior if the HF_HOME changes in the future
-# Set the HF_HOME to the studio's hf_download directory
-os.environ['HF_HOME'] = STUDIO_HF_HOME
-os.environ['TOKENIZERS_PARALLELISM'] = 'false'  # Prevent tokenizers parallelism warning
+
 
 # Try to suppress annoyingly persistent Windows asyncio proactor errors
 if os.name == 'nt':  # Windows only
