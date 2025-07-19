@@ -61,7 +61,9 @@ class ModelState:
         Returns:
             True if a reload is required, otherwise False.
         """
-        selected_lora_values = [
+        # queue load only sends the exact selected_loras and lora_values while other functions may send lora_values for all lora_loaded_names
+        # remove the condition if we update to always send the matching selected_loras and lora_values
+        selected_lora_values = lora_values if len(selected_loras) == len(lora_values) else [
             lora_values[lora_loaded_names.index(name)]
             for name in selected_loras
             if name in lora_loaded_names
@@ -104,7 +106,9 @@ class ModelState:
             self.__logger.debug("Model configuration unchanged, skipping reload.")
             return
 
-        selected_lora_values = [
+        # queue load only sends the exact selected_loras and lora_values while other functions may send lora_values for all lora_loaded_names
+        # remove the condition if we update to always send the matching selected_loras and lora_values
+        selected_lora_values = lora_values if len(selected_loras) == len(lora_values) else [
             lora_values[lora_loaded_names.index(name)]
             for name in selected_loras
             if name in lora_loaded_names

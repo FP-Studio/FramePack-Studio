@@ -318,7 +318,9 @@ class BaseModelGenerator(ABC):
         if lora_values is None:
             lora_values = []
 
-        selected_lora_values = [lora_values[lora_loaded_names.index(name)] for name in selected_loras if name in lora_loaded_names]
+        selected_lora_values = lora_values if len(selected_loras) == len(lora_values) else [
+            lora_values[lora_loaded_names.index(name)] for name in selected_loras if name in lora_loaded_names
+        ]
         print(f"Loading LoRAs: {selected_loras} with values: {selected_lora_values}")
 
         active_model_configuration = ModelConfiguration.from_lora_names_and_weights(
