@@ -29,7 +29,7 @@ else:
 class LoraLoader(StrEnum):
     DIFFUSERS = "diffusers"
     LORA_READY = "lora_ready"
-    DEFAULT = DIFFUSERS
+    DEFAULT = LORA_READY
 
     @staticmethod
     def supported_values() -> list[str]:
