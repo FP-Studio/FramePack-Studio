@@ -918,7 +918,7 @@ def worker(
             if history_pixels is None:
                 history_pixels = vae_decode(real_history_latents, vae).cpu()
             else:
-                section_latent_frames = (latent_window_size * 2 + 1) if model_type in ("Original", "Original with Endframe") and has_input_image and is_last_section else studio_module.current_generator.get_section_latent_frames(latent_window_size, is_last_section)
+                section_latent_frames = studio_module.current_generator.get_section_latent_frames(latent_window_size, is_last_section)
                 overlapped_frames = latent_window_size * 4 - 3
 
                 # Get current pixels using the generator
