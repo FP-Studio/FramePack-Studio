@@ -10,14 +10,15 @@ from .original_with_endframe_pipeline import OriginalWithEndframePipeline
 from .video_pipeline import VideoPipeline
 from .video_f1_pipeline import VideoF1Pipeline
 
+
 def create_pipeline(model_type, settings):
     """
     Create a pipeline instance for the specified model type.
-    
+
     Args:
         model_type: The type of model to create a pipeline for
         settings: Dictionary of settings for the pipeline
-        
+
     Returns:
         A pipeline instance for the specified model type
     """
@@ -34,12 +35,13 @@ def create_pipeline(model_type, settings):
     else:
         raise ValueError(f"Unknown model type: {model_type}")
 
+
 __all__ = [
-    'BasePipeline',
-    'OriginalPipeline',
-    'F1Pipeline',
-    'OriginalWithEndframePipeline',
-    'VideoPipeline',
-    'VideoF1Pipeline',
-    'create_pipeline'
+    "BasePipeline",
+    "OriginalPipeline",
+    "F1Pipeline",
+    "OriginalWithEndframePipeline",
+    "VideoPipeline",
+    "VideoF1Pipeline",
+    "create_pipeline",
 ]

@@ -5,7 +5,6 @@
 
 import os
 import torch
-from tqdm import tqdm
 from .lora_utils import merge_lora_to_state_dict
 
 
@@ -49,14 +48,14 @@ def load_and_apply_lora(
     for lora_path, lora_scale in zip(lora_paths, lora_scales):
         print(f"LoRA loading: {os.path.basename(lora_path)} (scale: {lora_scale})")
 
-    print(f"Model architecture: HunyuanVideo")
+    print("Model architecture: HunyuanVideo")
 
     # Merge the LoRA weighs into the state dictionary
     merged_state_dict = merge_lora_to_state_dict(
         model_files, lora_paths, lora_scales, fp8_enabled, device
     )
 
-    print(f"LoRA loading complete")
+    print("LoRA loading complete")
     return merged_state_dict
 
 

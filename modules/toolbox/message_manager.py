@@ -1,7 +1,8 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 import queue
 import threading
+
 
 class MessageManager:
     def __init__(self, max_messages: int = 100):
@@ -9,13 +10,13 @@ class MessageManager:
         self._max_messages = max_messages
         self._message_queue = queue.Queue()
         self._lock = threading.Lock()
-        
+
         # ANSI-style formatting for different message types
         self._formats = {
-            "INFO": "ℹ️",    # Info icon
+            "INFO": "ℹ️",  # Info icon
             "SUCCESS": "✅",  # Checkmark
             "WARNING": "⚠️",  # Warning icon
-            "ERROR": "❌",    # Error icon
+            "ERROR": "❌",  # Error icon
         }
 
     def add_message(self, message: str, message_type: str = "INFO") -> None:
@@ -23,13 +24,13 @@ class MessageManager:
         # Only show hours:minutes for timestamps
         timestamp = datetime.now().strftime("%H:%M")
         icon = self._formats.get(message_type, "•")
-        
+
         # Format filename paths to be more readable
         if "Processing file" in message or "Created batch folder" in message:
             message = self._format_path(message)
-            
+
         formatted_message = f"{icon} {message}"
-        
+
         with self._lock:
             self._messages.append(formatted_message)
             if len(self._messages) > self._max_messages:
@@ -65,7 +66,9 @@ class MessageManager:
             formatted = []
             last_type = None
             for msg in self._messages:
-                current_type = next((t for t in self._formats if self._formats[t] in msg), None)
+                current_type = next(
+                    (t for t in self._formats if self._formats[t] in msg), None
+                )
                 if last_type and current_type != last_type:
                     formatted.append("")  # Add spacing between different types
                 formatted.append(msg)

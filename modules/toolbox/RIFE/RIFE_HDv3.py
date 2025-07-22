@@ -1,15 +1,10 @@
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
 from torch.optim import AdamW
-import numpy as np
-import itertools
-from .warplayer import warp
 from torch.nn.parallel import DistributedDataParallel as DDP
 from .IFNet_HDv3 import *
 from .loss import *
 import devicetorch
+
 device = devicetorch.get(torch)
 
 
@@ -22,7 +17,9 @@ class Model:
         # self.vgg = VGGPerceptualLoss().to(device)
         self.sobel = SOBEL()
         if local_rank != -1:
-            self.flownet = DDP(self.flownet, device_ids=[local_rank], output_device=local_rank)
+            self.flownet = DDP(
+                self.flownet, device_ids=[local_rank], output_device=local_rank
+            )
 
     def train(self):
         self.flownet.train()
@@ -36,7 +33,11 @@ class Model:
     def load_model(self, path, rank=0):
         def convert(param):
             if rank == -1:
-                return {k.replace("module.", ""): v for k, v in param.items() if "module." in k}
+                return {
+                    k.replace("module.", ""): v
+                    for k, v in param.items()
+                    if "module." in k
+                }
             else:
                 return param
 
@@ -44,22 +45,25 @@ class Model:
             model_path = "{}/flownet.pkl".format(path)
             # Check PyTorch version to safely use weights_only
             from packaging import version
+
             use_weights_only = version.parse(torch.__version__) >= version.parse("1.13")
-            
+
             load_kwargs = {}
             if not torch.cuda.is_available():
-                load_kwargs['map_location'] = "cpu"
+                load_kwargs["map_location"] = "cpu"
 
             if use_weights_only:
                 # For modern PyTorch, be explicit and safe
-                load_kwargs['weights_only'] = True
+                load_kwargs["weights_only"] = True
                 # print(f"PyTorch >= 1.13 detected. Loading RIFE model with weights_only=True.")
                 state_dict = torch.load(model_path, **load_kwargs)
             else:
                 # For older PyTorch, load the old way
-                print(f"PyTorch < 1.13 detected. Loading RIFE model using legacy method.")
+                print(
+                    "PyTorch < 1.13 detected. Loading RIFE model using legacy method."
+                )
                 state_dict = torch.load(model_path, **load_kwargs)
-            
+
             self.flownet.load_state_dict(convert(state_dict))
 
     def inference(self, img0, img1, scale=1.0):
@@ -78,7 +82,9 @@ class Model:
         else:
             self.eval()
         scale = [4, 2, 1]
-        flow, mask, merged = self.flownet(torch.cat((imgs, gt), 1), scale=scale, training=training)
+        flow, mask, merged = self.flownet(
+            torch.cat((imgs, gt), 1), scale=scale, training=training
+        )
         loss_l1 = (merged[2] - gt).abs().mean()
         loss_smooth = self.sobel(flow[2], flow[2] * 0).mean()
         # loss_vgg = self.vgg(merged[2], gt)

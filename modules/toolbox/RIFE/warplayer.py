@@ -1,18 +1,18 @@
 import torch
-import torch.nn as nn
 # import devicetorch
 # device = devicetorch.get(torch)
 
-backwarp_tenGrid = {} # Cache for grid tensors
+backwarp_tenGrid = {}  # Cache for grid tensors
+
 
 def warp(tenInput, tenFlow):
     # The key for caching should be based on tenFlow's properties, including its device
-    k = (str(tenFlow.device), str(tenFlow.size())) 
+    k = (str(tenFlow.device), str(tenFlow.size()))
 
     if k not in backwarp_tenGrid:
         # Create grid tensors on the same device as tenFlow
-        flow_device = tenFlow.device 
-        
+        flow_device = tenFlow.device
+
         tenHorizontal = (
             torch.linspace(-1.0, 1.0, tenFlow.shape[3], device=flow_device)
             .view(1, 1, 1, tenFlow.shape[3])
@@ -44,7 +44,11 @@ def warp(tenInput, tenFlow):
     # If tenInput can be on a different device than tenFlow, that's a separate issue.
     # Assuming tenInput and tenFlow are on the same device for grid_sample.
     g = (backwarp_tenGrid[k] + tenFlow).permute(0, 2, 3, 1)
-    
+
     return torch.nn.functional.grid_sample(
-        input=tenInput, grid=g, mode="bilinear", padding_mode="border", align_corners=True
+        input=tenInput,
+        grid=g,
+        mode="bilinear",
+        padding_mode="border",
+        align_corners=True,
     )

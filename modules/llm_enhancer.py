@@ -7,7 +7,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 # This can be moved to a settings file later.
 MODEL_NAME = "ibm-granite/granite-3.3-2b-instruct"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-SYSTEM_PROMPT= (
+SYSTEM_PROMPT = (
     "You are a tool to enhance descriptions of scenes, aiming to rewrite user "
     "input into high-quality prompts for increased coherency and fluency while "
     "strictly adhering to the original meaning.\n"
@@ -19,7 +19,7 @@ SYSTEM_PROMPT= (
     "expression, quantity, race, posture, etc.), visual style, spatial "
     "relationships, and shot scales;\n"
     "3. Output the entire prompt in English, retaining original text in "
-    'quotes and titles, and preserving key input information;\n'
+    "quotes and titles, and preserving key input information;\n"
     "4. Prompts should match the user’s intent and accurately reflect the "
     "specified style. If the user does not specify a style, choose the most "
     "appropriate style for the video;\n"
@@ -40,9 +40,9 @@ SYSTEM_PROMPT= (
     "with faint blue sky, mountains, and some withered plants. Vintage film "
     "texture photo. Medium shot half-body portrait in a seated position.\n"
     "2. Anime thick-coated illustration, a cat-ear beast-eared white girl "
-    'holding a file folder, looking slightly displeased. She has long dark '
-    'purple hair, red eyes, and is wearing a dark grey short skirt and '
-    'light grey top, with a white belt around her waist, and a name tag on '
+    "holding a file folder, looking slightly displeased. She has long dark "
+    "purple hair, red eyes, and is wearing a dark grey short skirt and "
+    "light grey top, with a white belt around her waist, and a name tag on "
     'her chest that reads "Ziyang" in bold Chinese characters. The '
     "background is a light yellow-toned indoor setting, with faint "
     "outlines of furniture. There is a pink halo above the girl's head. "
@@ -78,6 +78,7 @@ PROMPT_TEMPLATE = (
 model = None
 tokenizer = None
 
+
 def _load_enhancing_model():
     """Loads the model and tokenizer, caching them globally."""
     global model, tokenizer
@@ -85,27 +86,24 @@ def _load_enhancing_model():
         print(f"LLM Enhancer: Loading model '{MODEL_NAME}' to {DEVICE}...")
         tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
         model = AutoModelForCausalLM.from_pretrained(
-            MODEL_NAME,
-            torch_dtype="auto",
-            device_map="auto"
+            MODEL_NAME, torch_dtype="auto", device_map="auto"
         )
         print("LLM Enhancer: Model loaded successfully.")
+
 
 def _run_inference(text_to_enhance: str) -> str:
     """Runs the LLM inference to enhance a single piece of text."""
 
     formatted_prompt = PROMPT_TEMPLATE.format(text_to_enhance=text_to_enhance)
-    
+
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": formatted_prompt}
+        {"role": "user", "content": formatted_prompt},
     ]
     text = tokenizer.apply_chat_template(
-        messages,
-        tokenize=False,
-        add_generation_prompt=True
+        messages, tokenize=False, add_generation_prompt=True
     )
-    
+
     model_inputs = tokenizer([text], return_tensors="pt").to(DEVICE)
 
     generated_ids = model.generate(
@@ -114,18 +112,20 @@ def _run_inference(text_to_enhance: str) -> str:
         do_sample=True,
         temperature=0.5,
         top_p=0.95,
-        top_k=30
+        top_k=30,
     )
 
     generated_ids = [
-        output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
+        output_ids[len(input_ids) :]
+        for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
     ]
 
     response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
-    
+
     # Clean up the response
-    response = response.strip().replace('"', '')
+    response = response.strip().replace('"', "")
     return response
+
 
 def unload_enhancing_model():
     global model, tokenizer
@@ -141,22 +141,22 @@ def unload_enhancing_model():
 def enhance_prompt(prompt_text: str) -> str:
     """
     Enhances a prompt, handling both plain text and timestamped formats.
-    
+
     Args:
         prompt_text: The user's input prompt.
-        
+
     Returns:
         The enhanced prompt string.
     """
 
-    _load_enhancing_model();
+    _load_enhancing_model()
 
     if not prompt_text:
         return ""
 
     # Regex to find timestamp sections like [0s: text] or [1.1s-2.2s: text]
-    timestamp_pattern = r'(\[\d+(?:\.\d+)?s(?:-\d+(?:\.\d+)?s)?\s*:\s*)(.*?)(?=\])'
-    
+    timestamp_pattern = r"(\[\d+(?:\.\d+)?s(?:-\d+(?:\.\d+)?s)?\s*:\s*)(.*?)(?=\])"
+
     matches = list(re.finditer(timestamp_pattern, prompt_text))
 
     if not matches:
@@ -165,13 +165,15 @@ def enhance_prompt(prompt_text: str) -> str:
         return _run_inference(prompt_text)
     else:
         # Timestamps found, enhance each section's text
-        print(f"LLM Enhancer: Enhancing {len(matches)} sections in a timestamped prompt.")
+        print(
+            f"LLM Enhancer: Enhancing {len(matches)} sections in a timestamped prompt."
+        )
         enhanced_parts = []
         last_end = 0
 
         for match in matches:
             # Add the part of the string before the current match (e.g., whitespace)
-            enhanced_parts.append(prompt_text[last_end:match.start()])
+            enhanced_parts.append(prompt_text[last_end : match.start()])
 
             timestamp_prefix = match.group(1)
             text_to_enhance = match.group(2).strip()

@@ -7,17 +7,20 @@ from .video_f1_generator import VideoF1ModelGenerator
 from .video_generator import VideoModelGenerator
 from .model_configuration import ModelConfiguration
 
-def create_model_generator(model_type, **kwargs) -> BaseModelGenerator | VideoBaseModelGenerator:
+
+def create_model_generator(
+    model_type, **kwargs
+) -> BaseModelGenerator | VideoBaseModelGenerator:
     """
     Create a model generator based on the model type.
-    
+
     Args:
         model_type: The type of model to create ("Original", "Original with Endframe", "F1", "Video", or "Video F1")
         **kwargs: Additional arguments to pass to the model generator constructor
-        
+
     Returns:
         A model generator instance
-        
+
     Raises:
         ValueError: If the model type is not supported
     """

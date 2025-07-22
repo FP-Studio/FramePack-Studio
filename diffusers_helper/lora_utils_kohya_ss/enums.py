@@ -70,16 +70,16 @@ if __name__ == "__main__":
         print(f"fail: {e}")
 
     assert isinstance(LoraLoader("lora_ready"), StrEnum)
-    assert isinstance(
-        LoraLoader.DIFFUSERS, LoraLoader
-    ), "DIFFUSERS should be an instance of LoraLoader"
-    assert (
-        LoraLoader.DEFAULT == LoraLoader.DIFFUSERS
-    ), "Default loader should be DIFFUSERS"
-    assert (
-        LoraLoader.DIFFUSERS != LoraLoader.LORA_READY
-    ), "DIFFUSERS should not equal LORA_READY"
+    assert isinstance(LoraLoader.DIFFUSERS, LoraLoader), (
+        "DIFFUSERS should be an instance of LoraLoader"
+    )
+    assert LoraLoader.DEFAULT == LoraLoader.DIFFUSERS, (
+        "Default loader should be DIFFUSERS"
+    )
+    assert LoraLoader.DIFFUSERS != LoraLoader.LORA_READY, (
+        "DIFFUSERS should not equal LORA_READY"
+    )
 
-    assert (
-        LoraLoader.LORA_READY.value == "lora_ready"
-    ), "lora_ready string should equal LoraLoader.LORA_READY"
+    assert LoraLoader.LORA_READY.value == "lora_ready", (
+        "lora_ready string should equal LoraLoader.LORA_READY"
+    )

@@ -89,7 +89,7 @@ def print_lora_status(model):
         application_rate = analysis["application_rate"]
 
         print(
-            f'LoRA conditions: {analysis["lora_affected_params"]}/{analysis["total_params"]} parameters ({application_rate:.2f}%)'
+            f"LoRA conditions: {analysis['lora_affected_params']}/{analysis['total_params']} parameters ({application_rate:.2f}%)"
         )
     else:
         print("LoRA status: Not applicable")

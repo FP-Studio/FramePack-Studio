@@ -62,7 +62,7 @@ def merge_lora_to_state_dict(
                     is_hunyuan = True
                     break
             if is_hunyuan:
-                print(f"HunyuanVideo LoRA detected, converting to FramePack format")
+                print("HunyuanVideo LoRA detected, converting to FramePack format")
                 lora_sd = convert_hunyuan_to_framepack(lora_sd)
 
         if lora_sd is not None:
@@ -217,7 +217,7 @@ def load_safetensors_with_lora_and_fp8(
         if len(lora_weight_keys) > 0:
             # if there are still LoRA keys left, it means they are not used in the model
             # this is a warning, not an error
-            print(f'Warning: not all LoRA keys are used: {", ".join(lora_weight_keys)}')
+            print(f"Warning: not all LoRA keys are used: {', '.join(lora_weight_keys)}")
 
     return state_dict
 
@@ -272,18 +272,18 @@ def convert_hunyuan_to_framepack(
             key_m = key.replace("attn_to_QKVM", "proj_mlp")
             if "_down" in key or "alpha" in key:
                 # copy QKVM weight or alpha to Q, K, V, M
-                assert (
-                    "alpha" in key or weight.size(1) == 3072
-                ), f"QKVM weight size mismatch: {key}. {weight.size()}"
+                assert "alpha" in key or weight.size(1) == 3072, (
+                    f"QKVM weight size mismatch: {key}. {weight.size()}"
+                )
                 new_lora_sd[key_q] = weight
                 new_lora_sd[key_k] = weight
                 new_lora_sd[key_v] = weight
                 new_lora_sd[key_m] = weight
             elif "_up" in key:
                 # split QKVM weight into Q, K, V, M
-                assert (
-                    weight.size(0) == 21504
-                ), f"QKVM weight size mismatch: {key}. {weight.size()}"
+                assert weight.size(0) == 21504, (
+                    f"QKVM weight size mismatch: {key}. {weight.size()}"
+                )
                 new_lora_sd[key_q] = weight[:3072]
                 new_lora_sd[key_k] = weight[3072 : 3072 * 2]
                 new_lora_sd[key_v] = weight[3072 * 2 : 3072 * 3]
@@ -300,17 +300,17 @@ def convert_hunyuan_to_framepack(
             key_v = key.replace("QKV", "v")
             if "_down" in key or "alpha" in key:
                 # copy QKV weight or alpha to Q, K, V
-                assert (
-                    "alpha" in key or weight.size(1) == 3072
-                ), f"QKV weight size mismatch: {key}. {weight.size()}"
+                assert "alpha" in key or weight.size(1) == 3072, (
+                    f"QKV weight size mismatch: {key}. {weight.size()}"
+                )
                 new_lora_sd[key_q] = weight
                 new_lora_sd[key_k] = weight
                 new_lora_sd[key_v] = weight
             elif "_up" in key:
                 # split QKV weight into Q, K, V
-                assert (
-                    weight.size(0) == 3072 * 3
-                ), f"QKV weight size mismatch: {key}. {weight.size()}"
+                assert weight.size(0) == 3072 * 3, (
+                    f"QKV weight size mismatch: {key}. {weight.size()}"
+                )
                 new_lora_sd[key_q] = weight[:3072]
                 new_lora_sd[key_k] = weight[3072 : 3072 * 2]
                 new_lora_sd[key_v] = weight[3072 * 2 :]
@@ -347,7 +347,7 @@ def load_safetensors_with_fp8_optimization(
             "norm"
         ]  # Exclude norm layers (e.g., LayerNorm, RMSNorm) from FP8
 
-        print(f"FP8: Optimizing state dictionary on the fly")
+        print("FP8: Optimizing state dictionary on the fly")
         # Optimized state dictionary in FP8 format
         state_dict = optimize_state_dict_with_fp8_on_the_fly(
             model_files,

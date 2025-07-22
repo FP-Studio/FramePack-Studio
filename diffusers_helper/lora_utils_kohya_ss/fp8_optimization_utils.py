@@ -29,9 +29,9 @@ def calculate_fp8_maxval(exp_bits=4, mantissa_bits=3, sign_bits=1) -> float:
     Returns:
         float: Maximum value that can be expressed in FP8 format.
     """
-    assert (
-        exp_bits + mantissa_bits + sign_bits == 8
-    ), f"The total number of bits for FP8 must be 8, but got {exp_bits + mantissa_bits + sign_bits} bits (E{exp_bits} M{mantissa_bits} S{sign_bits})"
+    assert exp_bits + mantissa_bits + sign_bits == 8, (
+        f"The total number of bits for FP8 must be 8, but got {exp_bits + mantissa_bits + sign_bits} bits (E{exp_bits} M{mantissa_bits} S{sign_bits})"
+    )
 
     # Calculate the exponent bias
     bias: int = 2 ** (exp_bits - 1) - 1

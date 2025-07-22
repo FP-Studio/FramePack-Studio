@@ -2,8 +2,8 @@ import torch
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision.models as models
 import devicetorch
+
 device = devicetorch.get(torch)
 
 
@@ -70,7 +70,9 @@ class SOBEL(nn.Module):
 
     def forward(self, pred, gt):
         N, C, H, W = pred.shape[0], pred.shape[1], pred.shape[2], pred.shape[3]
-        img_stack = torch.cat([pred.reshape(N * C, 1, H, W), gt.reshape(N * C, 1, H, W)], 0)
+        img_stack = torch.cat(
+            [pred.reshape(N * C, 1, H, W), gt.reshape(N * C, 1, H, W)], 0
+        )
         sobel_stack_x = F.conv2d(img_stack, self.kernelX, padding=1)
         sobel_stack_y = F.conv2d(img_stack, self.kernelY, padding=1)
         pred_X, gt_X = sobel_stack_x[: N * C], sobel_stack_x[N * C :]
@@ -103,7 +105,9 @@ class VGGPerceptualLoss(torch.nn.Module):
         blocks = []
         pretrained = True
         # self.vgg_pretrained_features = models.vgg19(pretrained=pretrained).features
-        self.normalize = MeanShift([0.485, 0.456, 0.406], [0.229, 0.224, 0.225], norm=True).to(device)
+        self.normalize = MeanShift(
+            [0.485, 0.456, 0.406], [0.229, 0.224, 0.225], norm=True
+        ).to(device)
         for param in self.parameters():
             param.requires_grad = False
 

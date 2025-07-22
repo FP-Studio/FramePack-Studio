@@ -26,39 +26,43 @@ def get_flux_sigmas_from_mu(n, mu):
 
 @torch.inference_mode()
 def sample_hunyuan(
-        transformer,
-        sampler='unipc',
-        initial_latent=None,
-        concat_latent=None,
-        strength=1.0,
-        width=512,
-        height=512,
-        frames=16,
-        real_guidance_scale=1.0,
-        distilled_guidance_scale=6.0,
-        guidance_rescale=0.0,
-        shift=None,
-        num_inference_steps=25,
-        batch_size=None,
-        generator=None,
-        prompt_embeds=None,
-        prompt_embeds_mask=None,
-        prompt_poolers=None,
-        negative_prompt_embeds=None,
-        negative_prompt_embeds_mask=None,
-        negative_prompt_poolers=None,
-        dtype=torch.bfloat16,
-        device=None,
-        negative_kwargs=None,
-        callback=None,
-        **kwargs,
+    transformer,
+    sampler="unipc",
+    initial_latent=None,
+    concat_latent=None,
+    strength=1.0,
+    width=512,
+    height=512,
+    frames=16,
+    real_guidance_scale=1.0,
+    distilled_guidance_scale=6.0,
+    guidance_rescale=0.0,
+    shift=None,
+    num_inference_steps=25,
+    batch_size=None,
+    generator=None,
+    prompt_embeds=None,
+    prompt_embeds_mask=None,
+    prompt_poolers=None,
+    negative_prompt_embeds=None,
+    negative_prompt_embeds_mask=None,
+    negative_prompt_poolers=None,
+    dtype=torch.bfloat16,
+    device=None,
+    negative_kwargs=None,
+    callback=None,
+    **kwargs,
 ):
     device = device or transformer.device
 
     if batch_size is None:
         batch_size = int(prompt_embeds.shape[0])
 
-    latents = torch.randn((batch_size, 16, (frames + 3) // 4, height // 8, width // 8), generator=generator, device=generator.device).to(device=device, dtype=torch.float32)
+    latents = torch.randn(
+        (batch_size, 16, (frames + 3) // 4, height // 8, width // 8),
+        generator=generator,
+        device=generator.device,
+    ).to(device=device, dtype=torch.float32)
 
     B, C, T, H, W = latents.shape
     seq_length = T * H * W // 4
@@ -76,18 +80,24 @@ def sample_hunyuan(
         sigmas = sigmas * strength
         first_sigma = sigmas[0].to(device=device, dtype=torch.float32)
         initial_latent = initial_latent.to(device=device, dtype=torch.float32)
-        latents = initial_latent.float() * (1.0 - first_sigma) + latents.float() * first_sigma
+        latents = (
+            initial_latent.float() * (1.0 - first_sigma) + latents.float() * first_sigma
+        )
 
     if concat_latent is not None:
         concat_latent = concat_latent.to(latents)
 
-    distilled_guidance = torch.tensor([distilled_guidance_scale * 1000.0] * batch_size).to(device=device, dtype=dtype)
+    distilled_guidance = torch.tensor(
+        [distilled_guidance_scale * 1000.0] * batch_size
+    ).to(device=device, dtype=dtype)
 
     prompt_embeds = repeat_to_batch_size(prompt_embeds, batch_size)
     prompt_embeds_mask = repeat_to_batch_size(prompt_embeds_mask, batch_size)
     prompt_poolers = repeat_to_batch_size(prompt_poolers, batch_size)
     negative_prompt_embeds = repeat_to_batch_size(negative_prompt_embeds, batch_size)
-    negative_prompt_embeds_mask = repeat_to_batch_size(negative_prompt_embeds_mask, batch_size)
+    negative_prompt_embeds_mask = repeat_to_batch_size(
+        negative_prompt_embeds_mask, batch_size
+    )
     negative_prompt_poolers = repeat_to_batch_size(negative_prompt_poolers, batch_size)
     concat_latent = repeat_to_batch_size(concat_latent, batch_size)
 
@@ -109,12 +119,19 @@ def sample_hunyuan(
             encoder_attention_mask=negative_prompt_embeds_mask,
             guidance=distilled_guidance,
             **(kwargs if negative_kwargs is None else {**kwargs, **negative_kwargs}),
-        )
+        ),
     )
 
-    if sampler == 'unipc':
-        results = sample_unipc(k_model, latents, sigmas, extra_args=sampler_kwargs, disable=False, callback=callback)
+    if sampler == "unipc":
+        results = sample_unipc(
+            k_model,
+            latents,
+            sigmas,
+            extra_args=sampler_kwargs,
+            disable=False,
+            callback=callback,
+        )
     else:
-        raise NotImplementedError(f'Sampler {sampler} is not supported.')
+        raise NotImplementedError(f"Sampler {sampler} is not supported.")
 
     return results

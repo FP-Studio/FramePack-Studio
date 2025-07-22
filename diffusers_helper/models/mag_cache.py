@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-import os
 
 from diffusers_helper.models.mag_cache_ratios import MAG_RATIOS_DB
 
@@ -16,7 +15,18 @@ class MagCache:
     Changing defauults to threshold=0.1, max_consectutive_skips=2, retention_ratio=0.25 for quality vs speed tradeoff.
     """
 
-    def __init__(self, model_family, height, width, num_steps, is_enabled=True, is_calibrating = False, threshold=0.1, max_consectutive_skips=2, retention_ratio=0.25):
+    def __init__(
+        self,
+        model_family,
+        height,
+        width,
+        num_steps,
+        is_enabled=True,
+        is_calibrating=False,
+        threshold=0.1,
+        max_consectutive_skips=2,
+        retention_ratio=0.25,
+    ):
         self.model_family = model_family
         self.height = height
         self.width = width
@@ -37,11 +47,10 @@ class MagCache:
 
         self._init_for_every_section()
 
-
     def _init_for_every_section(self):
         self.step_index = 0
         self.steps_skipped_list = []
-        #Error accumulation state
+        # Error accumulation state
         self.accumulated_ratio = 1.0
         self.accumulated_steps = 0
         self.accumulated_err = 0
@@ -52,14 +61,16 @@ class MagCache:
         self.previous_residual = None
 
         if self.is_calibrating and self.total_cache_requests > 0:
-                print('WARNING: Resetting MagCache calibration stats for new section. Typically you only want one section per calibration job. Discarding calibration from previsou section.')
+            print(
+                "WARNING: Resetting MagCache calibration stats for new section. Typically you only want one section per calibration job. Discarding calibration from previsou section."
+            )
 
     def should_skip(self, hidden_states):
         """
         Expected to be called once per step during the forward pass, for the numer of initialized steps.
         Determines if the current step should be skipped based on estimated accumulated error.
         If the step is skipped, the hidden_states should be replaced with the output of estimate_predicted_hidden_states().
-        
+
         Args:
             hidden_states: The current hidden states tensor from the transformer model.
         Returns:
@@ -68,21 +79,30 @@ class MagCache:
         if self.step_index == 0 or self.step_index >= self.num_steps:
             self._init_for_every_section()
         self.total_cache_requests += 1
-        self.hidden_states = hidden_states.clone() # Is clone needed?
+        self.hidden_states = hidden_states.clone()  # Is clone needed?
 
         if self.is_calibrating:
-            print('######################### Calibrating MagCache #########################')
+            print(
+                "######################### Calibrating MagCache #########################"
+            )
             return False
-        
+
         should_skip_forward = False
-        if self.step_index>=int(self.retention_ratio*self.num_steps) and self.step_index>=1: # keep first retention_ratio steps
+        if (
+            self.step_index >= int(self.retention_ratio * self.num_steps)
+            and self.step_index >= 1
+        ):  # keep first retention_ratio steps
             cur_mag_ratio = self.mag_ratios[self.step_index]
-            self.accumulated_ratio = self.accumulated_ratio*cur_mag_ratio
-            cur_skip_err = np.abs(1-self.accumulated_ratio)
+            self.accumulated_ratio = self.accumulated_ratio * cur_mag_ratio
+            cur_skip_err = np.abs(1 - self.accumulated_ratio)
             self.accumulated_err += cur_skip_err
             self.accumulated_steps += 1
             # RT_BORG: Per my conversation with Zehong Ma, this 0.06 could potentially be exposed as another tunable param.
-            if self.accumulated_err<=self.threshold and self.accumulated_steps<=self.max_consectutive_skips and np.abs(1-cur_mag_ratio)<=0.06:
+            if (
+                self.accumulated_err <= self.threshold
+                and self.accumulated_steps <= self.max_consectutive_skips
+                and np.abs(1 - cur_mag_ratio) <= 0.06
+            ):
                 should_skip_forward = True
             else:
                 self.accumulated_ratio = 1.0
@@ -98,17 +118,17 @@ class MagCache:
             self.step_index = 0
 
         return should_skip_forward
-    
+
     def estimate_predicted_hidden_states(self):
         """
         Should be called if and only if should_skip() returned True for the current step.
         Estimates the hidden states for the current step based on the previous hidden states and residual.
-        
+
         Returns:
             The estimated hidden states tensor.
         """
         return self.hidden_states + self.previous_residual
-    
+
     def update_hidden_states(self, model_prediction_hidden_states):
         """
         If and only if should_skip() returned False for the current step, the denoising layers should have been run,
@@ -124,16 +144,33 @@ class MagCache:
 
         self.previous_residual = current_residual
 
-    def _update_calibration_stats(self, current_residual):        
+    def _update_calibration_stats(self, current_residual):
         if self.step_index >= 1:
-            norm_ratio = ((current_residual.norm(dim=-1)/self.previous_residual.norm(dim=-1)).mean()).item()
-            norm_std = (current_residual.norm(dim=-1)/self.previous_residual.norm(dim=-1)).std().item()
-            cos_dis = (1-torch.nn.functional.cosine_similarity(current_residual, self.previous_residual, dim=-1, eps=1e-8)).mean().item()
+            norm_ratio = (
+                (
+                    current_residual.norm(dim=-1) / self.previous_residual.norm(dim=-1)
+                ).mean()
+            ).item()
+            norm_std = (
+                (current_residual.norm(dim=-1) / self.previous_residual.norm(dim=-1))
+                .std()
+                .item()
+            )
+            cos_dis = (
+                (
+                    1
+                    - torch.nn.functional.cosine_similarity(
+                        current_residual, self.previous_residual, dim=-1, eps=1e-8
+                    )
+                )
+                .mean()
+                .item()
+            )
             self.norm_ratio.append(round(norm_ratio, 5))
             self.norm_std.append(round(norm_std, 5))
             self.cos_dis.append(round(cos_dis, 5))
             # print(f"time: {self.step_index}, norm_ratio: {norm_ratio}, norm_std: {norm_std}, cos_dis: {cos_dis}")
-        
+
         self.step_index += 1
         if self.step_index == self.num_steps:
             print("norm ratio")
@@ -148,7 +185,7 @@ class MagCache:
         """
         Determines the magnitude ratios by finding the closest resolution and step count
         in the pre-calibrated database.
-        
+
         Returns:
             A numpy array of magnitude ratios for the specified configuration, or None if not found.
         """
@@ -162,27 +199,39 @@ class MagCache:
                 raise ValueError("No resolutions defined for this model family.")
 
             avg_resolution = (self.height + self.width) / 2.0
-            closest_resolution_key = min(available_resolutions, key=lambda r: abs(r - avg_resolution))
+            closest_resolution_key = min(
+                available_resolutions, key=lambda r: abs(r - avg_resolution)
+            )
 
             # Find the closest available step count for the given model/resolution
             steps_group = resolution_groups[closest_resolution_key]
             available_steps = list(steps_group.keys())
             if not available_steps:
-                raise ValueError(f"No step counts defined for resolution {closest_resolution_key}.")
+                raise ValueError(
+                    f"No step counts defined for resolution {closest_resolution_key}."
+                )
             closest_steps = min(available_steps, key=lambda x: abs(x - self.num_steps))
             base_ratios = steps_group[closest_steps]
             if closest_steps == self.num_steps:
-                print(f"MagCache: Found ratios for {self.model_family}, resolution group {closest_resolution_key} ({self.width}x{self.height}), {self.num_steps} steps.")
+                print(
+                    f"MagCache: Found ratios for {self.model_family}, resolution group {closest_resolution_key} ({self.width}x{self.height}), {self.num_steps} steps."
+                )
                 return base_ratios
-            print(f"MagCache: Using ratios from {self.model_family}, resolution group {closest_resolution_key} ({self.width}x{self.height}), {closest_steps} steps and interpolating to {self.num_steps} steps.")
+            print(
+                f"MagCache: Using ratios from {self.model_family}, resolution group {closest_resolution_key} ({self.width}x{self.height}), {closest_steps} steps and interpolating to {self.num_steps} steps."
+            )
             return self._nearest_step_interpolation(base_ratios, self.num_steps)
         except KeyError:
             # This will catch if model_family is not in MAG_RATIOS_DB
-            print(f"Warning: MagCache not calibrated for model family '{self.model_family}'. MagCache will not be used.")
+            print(
+                f"Warning: MagCache not calibrated for model family '{self.model_family}'. MagCache will not be used."
+            )
             self.is_enabled = False
         except (ValueError, TypeError) as e:
             # This will catch errors if resolution keys or step keys are not numbers, or if groups are empty.
-            print(f"Warning: Error processing MagCache DB for model family '{self.model_family}': {e}. MagCache will not be used.")
+            print(
+                f"Warning: Error processing MagCache DB for model family '{self.model_family}': {e}. MagCache will not be used."
+            )
             self.is_enabled = False
         return None
 
