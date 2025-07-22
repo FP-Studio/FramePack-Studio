@@ -6,7 +6,6 @@ import functools
 from PIL import Image
 import numpy as np
 
-from modules.prompt_handler import get_section_boundaries, get_quick_prompts
 from diffusers_helper.bucket_tools import find_nearest_bucket
 from modules.xy_plot_ui import create_xy_plot_ui
 from modules.llm_enhancer import enhance_prompt

@@ -1,40 +1,14 @@
 import gradio as gr
-import time
-import datetime
-import random
-import json
-import os
-import shutil
-from typing import List, Dict, Any, Optional
-from PIL import Image, ImageDraw, ImageFont
-import numpy as np
-import base64
-import io
-import functools
 
-from modules.version import APP_VERSION, APP_VERSION_DISPLAY
+from modules.version import APP_VERSION_DISPLAY
 
-import subprocess
-import itertools
-import re
-from collections import defaultdict
-import imageio
-import imageio.plugins.ffmpeg
-import ffmpeg
-from diffusers_helper.utils import generate_timestamp
 
-from modules.video_queue import JobStatus, Job, JobType
-from modules.prompt_handler import get_section_boundaries, get_quick_prompts, parse_timestamped_prompt
-from modules.llm_enhancer import enhance_prompt
-from modules.llm_captioner import caption_image
-from diffusers_helper.gradio.progress_bar import make_progress_bar_css, make_progress_bar_html
-from diffusers_helper.bucket_tools import find_nearest_bucket
-from modules.pipelines.metadata_utils import create_metadata
+from diffusers_helper.gradio.progress_bar import make_progress_bar_css
 from modules import DUMMY_LORA_NAME # Import the constant
 
 from modules.toolbox_app import tb_processor
 from modules.toolbox_app import tb_create_video_toolbox_ui, tb_get_formatted_toolbar_stats
-from modules.xy_plot_ui import create_xy_plot_ui, xy_plot_process
+from modules.xy_plot_ui import xy_plot_process
 from modules.ui.generate import create_generate_ui, connect_generate_events, load_presets
 from modules.ui.queue import create_queue_ui, connect_queue_events, update_queue_status_with_thumbnails
 from modules.ui.outputs import create_outputs_ui, connect_outputs_events

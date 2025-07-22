@@ -1,7 +1,5 @@
 import gradio as gr
-import os
 import time
-import datetime
 from modules.video_queue import JobStatus
 
 def format_queue_status(jobs):
