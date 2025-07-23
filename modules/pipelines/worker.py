@@ -50,7 +50,8 @@ def get_cached_or_encode_prompt(
     Stores encoded embeddings (on CPU) in the cache.
     Returns embeddings moved to the target_device.
     """
-    from diffusers_helper.hunyuan import encode_prompt_conds, crop_or_pad_yield_mask
+    from diffusers_helper.hunyuan import encode_prompt_conds
+    from diffusers_helper.utils import crop_or_pad_yield_mask
 
     if prompt in prompt_embedding_cache:
         print(f"Cache hit for prompt: {prompt[:60]}...")
