@@ -81,7 +81,7 @@ class RIFEHandler:
             self._log(
                 f"Loading RIFE model from {self.model_dir}..."
             )  # self.model_dir is absolute
-            current_device_str = devicetorch.get(torch)
+            #current_device_str = devicetorch.get(torch)
             self.rife_model = RIFEBaseModel(local_rank=-1)
 
             self.rife_model.load_model(

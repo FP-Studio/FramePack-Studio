@@ -417,14 +417,7 @@ def worker(
         ):
             try:
                 # Import the save_job_start_image function from metadata_utils
-                from modules.pipelines.metadata_utils import (
-                    save_job_start_image,
-                    create_metadata,
-                )
-
-                # metadata_dict is not used - candidate for removal as save_job_start_image calls the same function internally
-                # Create comprehensive metadata for the job
-                metadata_dict = create_metadata(job_params, job_id, settings)
+                from modules.pipelines.metadata_utils import save_job_start_image
 
                 # Save the starting image with metadata
                 save_job_start_image(job_params, job_id, settings)
@@ -946,9 +939,6 @@ def worker(
             if original_pos < 0:
                 original_pos = 0
 
-            hint = (
-                segment_hint  # deprecated variable kept to minimise other code changes
-            )
             desc = studio_module.current_generator.format_position_description(
                 total_generated_latent_frames, current_pos, original_pos, current_prompt
             )
@@ -1074,9 +1064,7 @@ def worker(
             # Calculate the current time position
             if model_type == "Video":
                 # For Video model, add the input video time to the current position
-                input_video_time = (
-                    input_video_frame_count * 4 / 30
-                )  # Convert latent frames to time
+                # Convert latent frames to time
                 current_time_position = (
                     total_generated_latent_frames * 4 - 3
                 ) / 30  # in seconds
@@ -1123,7 +1111,7 @@ def worker(
                             prompt_change_indices[i - 1][1] if i > 0 else prompt
                         )
                         next_prompt = prompt
-                        blend_start = change_idx
+                        # blend_start = change_idx (unused)
                         blend_end = change_idx + blend_sections
                         if section_idx >= change_idx and section_idx < blend_end:
                             blend_alpha = (
@@ -1384,7 +1372,11 @@ def worker(
                 history_pixels = vae_decode(real_history_latents, vae).cpu()
             else:
                 section_latent_frames = (
-                    studio_module.current_generator.get_section_latent_frames(
+                    (latent_window_size * 2 + 1)
+                    if model_type in ("Original", "Original with Endframe")
+                    and has_input_image
+                    and is_last_section
+                    else studio_module.current_generator.get_section_latent_frames(
                         latent_window_size, is_last_section
                     )
                 )
@@ -1443,10 +1435,6 @@ def worker(
                 )
             studio_module.current_generator.transformer.uninstall_magcache()
             magcache = None
-
-        # Handle the results
-        # handle_results does not seem to do anything and we do not do anything with the result
-        result = pipeline.handle_results(job_params, output_filename)
 
         # Unload all LoRAs after generation completed
         if selected_loras:
@@ -1507,7 +1495,7 @@ def worker(
 
                     video_files_sorted = sorted(video_files, key=get_frame_count)
                     print(f"Sorted video files: {video_files_sorted}")
-                    final_video = video_files_sorted[-1]
+                    # final_video = video_files_sorted[-1]
                     for vf in video_files_sorted[:-1]:
                         full_path = os.path.join(output_dir, vf)
                         try:

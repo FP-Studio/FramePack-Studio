@@ -143,9 +143,7 @@ def create_settings_ui(settings, get_latents_display_top, model_type_choices):
                     info="Select the LoRA loader to use. 'diffusers' for Diffusers format, 'lora_ready' for Kohya-ss format.",
                     interactive=True,
                 )
-                __reuse_model_instance_warning__ = gr.Markdown(
-                    "The *Reuse of Model Instance* option may be unstable for lower memory GPUs. If you experience memory pressure or crashes, disable this option."
-                )
+                
                 reuse_model_instance = gr.Checkbox(
                     label="Reuse Model Instance",
                     value=settings.get("reuse_model_instance", False),

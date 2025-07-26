@@ -172,7 +172,7 @@ def create_metadata(job_params, job_id, settings, save_placeholder=False):
         try:
             # Try to use a system font
             font = ImageFont.truetype("Arial", 20)
-        except:
+        except Exception:
             # Fall back to default font
             font = ImageFont.load_default()
 

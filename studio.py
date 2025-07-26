@@ -4,19 +4,6 @@ import os
 import shutil
 import time
 from pathlib import PurePath
-
-
-# Set environment variables
-STUDIO_HF_HOME = os.path.abspath(
-    os.path.realpath(os.path.join(os.path.dirname(__file__), "./hf_download"))
-)
-# maybe only set HF_HOME if the directory exists, providing an opt-in migration path for users
-# make sure to document this behavior if the HF_HOME changes in the future
-# Set the HF_HOME to the studio's hf_download directory
-# HF_HOME Must be set to its expected value prior to importing diffusers and transformers
-os.environ["HF_HOME"] = STUDIO_HF_HOME
-os.environ["TOKENIZERS_PARALLELISM"] = "false"  # Prevent tokenizers parallelism warning
-
 # Site packages
 from diffusers import AutoencoderKLHunyuanVideo
 from transformers import LlamaModel, CLIPTextModel, LlamaTokenizerFast, CLIPTokenizer
@@ -24,8 +11,6 @@ from transformers import SiglipImageProcessor, SiglipVisionModel
 import gradio as gr
 import numpy as np
 import torch
-
-# Studio Module imports
 # Import from diffusers_helper
 from diffusers_helper.gradio.progress_bar import make_progress_bar_html
 from diffusers_helper.memory import gpu, get_cuda_free_memory_gb, DynamicSwapInstaller
@@ -39,6 +24,19 @@ from modules.pipelines.worker import worker
 from modules.studio_manager import StudioManager
 from modules.ui.queue import format_queue_status
 from modules.video_queue import JobStatus
+
+# Set environment variables
+STUDIO_HF_HOME = os.path.abspath(
+    os.path.realpath(os.path.join(os.path.dirname(__file__), "./hf_download"))
+)
+# maybe only set HF_HOME if the directory exists, providing an opt-in migration path for users
+# make sure to document this behavior if the HF_HOME changes in the future
+# Set the HF_HOME to the studio's hf_download directory
+# HF_HOME Must be set to its expected value prior to importing diffusers and transformers
+os.environ["HF_HOME"] = STUDIO_HF_HOME
+os.environ["TOKENIZERS_PARALLELISM"] = "false"  # Prevent tokenizers parallelism warning
+
+
 
 
 # Try to suppress annoyingly persistent Windows asyncio proactor errors
@@ -401,7 +399,6 @@ def process(
         )
     print(f"Added job {job_id} to queue")
 
-    queue_status = update_queue_status()
     # Return immediately after adding to queue
     # Return separate updates for start_button and end_button to prevent cross-contamination
     return (
@@ -619,10 +616,6 @@ def monitor_job(job_id=None):
 
             # Always check for progress data, even if we don't have a preview yet
             if job.progress_data and update_needed:
-                preview = job.progress_data.get("preview")
-                desc = job.progress_data.get("desc", "")
-                html = job.progress_data.get("html", "")
-
                 # Only update the preview if it has changed or we're forcing an update
                 # Ensure all components get an update
                 current_preview_value = (
