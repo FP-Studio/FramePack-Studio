@@ -16,7 +16,6 @@ from diffusers_helper.gradio.progress_bar import make_progress_bar_html
 from diffusers_helper.memory import gpu, get_cuda_free_memory_gb, DynamicSwapInstaller
 from diffusers_helper.thread_utils import AsyncStream
 from diffusers_helper.utils import generate_timestamp
-
 # Import from modules
 from modules import DUMMY_LORA_NAME  # Import the constant
 from modules.interface import create_interface
