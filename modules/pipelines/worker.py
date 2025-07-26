@@ -417,9 +417,7 @@ def worker(
         ):
             try:
                 # Import the save_job_start_image function from metadata_utils
-                from modules.pipelines.metadata_utils import (
-                    save_job_start_image
-                )
+                from modules.pipelines.metadata_utils import save_job_start_image
 
                 # Save the starting image with metadata
                 save_job_start_image(job_params, job_id, settings)
@@ -1113,7 +1111,7 @@ def worker(
                             prompt_change_indices[i - 1][1] if i > 0 else prompt
                         )
                         next_prompt = prompt
-                        #blend_start = change_idx (unused)
+                        # blend_start = change_idx (unused)
                         blend_end = change_idx + blend_sections
                         if section_idx >= change_idx and section_idx < blend_end:
                             blend_alpha = (
@@ -1374,7 +1372,11 @@ def worker(
                 history_pixels = vae_decode(real_history_latents, vae).cpu()
             else:
                 section_latent_frames = (
-                    studio_module.current_generator.get_section_latent_frames(
+                    (latent_window_size * 2 + 1)
+                    if model_type in ("Original", "Original with Endframe")
+                    and has_input_image
+                    and is_last_section
+                    else studio_module.current_generator.get_section_latent_frames(
                         latent_window_size, is_last_section
                     )
                 )
@@ -1493,7 +1495,7 @@ def worker(
 
                     video_files_sorted = sorted(video_files, key=get_frame_count)
                     print(f"Sorted video files: {video_files_sorted}")
-                    #final_video = video_files_sorted[-1]
+                    # final_video = video_files_sorted[-1]
                     for vf in video_files_sorted[:-1]:
                         full_path = os.path.join(output_dir, vf)
                         try:
