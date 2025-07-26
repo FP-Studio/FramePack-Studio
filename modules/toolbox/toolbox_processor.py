@@ -1137,9 +1137,7 @@ class VideoProcessor:
             # High-quality GIF generation is a two-pass process.
             self.message_manager.add_message("Generating high-quality GIF (2-pass)...")
             # Pass 1: Generate a color palette.
-            palette_path = os.path.join(
-                self._base_temp_output_dir, f"palette_{Path(video_path).stem}.png"
-            )
+            
             vf_parts.append("split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse")
             ffmpeg_cmd.extend(["-an"])  # No audio in GIFs
 
@@ -1893,9 +1891,6 @@ class VideoProcessor:
                     elif (
                         speed_factor > 100.0
                     ):  # Needs multiple 2.0 (or higher, like 100.0) steps
-                        num_double_steps = int(
-                            np.ceil(np.log(speed_factor / 100.0) / np.log(2.0))
-                        )  # Example for steps of 2 after 100
                         audio_filters.append("atempo=100.0")  # Max one step
                         remaining_factor = speed_factor / 100.0
                         if (
@@ -2061,9 +2056,7 @@ class VideoProcessor:
                         "Original video has audio. Will loop audio for ping-pong."
                     )
                     # Audio duration needs to match 2T * num_loops.
-                    audio_loop_count_for_ffmpeg = (
-                        (num_loops * 2) - 1
-                    )  # Total plays of original audio needed, minus one for initial play by -i
+                    # Total plays of original audio needed, minus one for initial play by -i
                     ffmpeg_cmd.extend(
                         [
                             "-i",

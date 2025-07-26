@@ -60,6 +60,7 @@ if __name__ == "__main__":
 import gradio as gr
 import imageio  # Added for reading frame dimensions
 import torch
+# ruff: noqa: I001
 from torchvision.transforms.functional import rgb_to_grayscale
 
 # --- Patch for basicsr (must run after torchvision import) ---
@@ -70,14 +71,14 @@ sys.modules.setdefault(
 )
 
 # --- Local Application Imports ---
-from modules.settings import Settings
-from modules.toolbox.message_manager import MessageManager
-from modules.toolbox.setup_ffmpeg import setup_ffmpeg
-from modules.toolbox.system_monitor import SystemMonitor
-from modules.toolbox.toolbox_processor import VideoProcessor
-from modules.generators.base_generator import BaseModelGenerator
-from modules.studio_manager import StudioManager
-from modules.video_queue import JobStatus
+from modules.settings import Settings # noqa: E402
+from modules.toolbox.message_manager import MessageManager # noqa: E402
+from modules.toolbox.setup_ffmpeg import setup_ffmpeg # noqa: E402
+from modules.toolbox.system_monitor import SystemMonitor # noqa: E402
+from modules.toolbox.toolbox_processor import VideoProcessor # noqa: E402
+from modules.generators.base_generator import BaseModelGenerator # noqa: E402
+from modules.studio_manager import StudioManager # noqa: E402
+from modules.video_queue import JobStatus # noqa: E402
 
 # Attempt to import helper, with a fallback if it's missing.
 try:
@@ -585,7 +586,6 @@ def tb_handle_clear_selected_folder(selected_folder_to_delete):
             gr.update(),
         )
 
-    success = tb_processor.tb_delete_extracted_frames_folder(selected_folder_to_delete)
     updated_folders = tb_processor.tb_get_extracted_frame_folders()
 
     # Return updates for all components: messages, dropdown, gallery, info box, and the two frame action buttons.
@@ -1161,15 +1161,7 @@ def tb_handle_upscale_video(
     if not model_key_selected:
         tb_message_mgr.add_warning("No upscale model selected.")
         return None, tb_update_messages()
-
-    try:
-        tile_size_int = int(tile_size)
-    except ValueError:
-        tb_message_mgr.add_error(
-            f"Invalid tile size value: {tile_size}. Using None (0)."
-        )
-        tile_size_int = 0
-
+    
     try:
         output_scale_factor_float = float(output_scale_factor_from_slider)
         if not (output_scale_factor_float >= 0.25):
@@ -1258,7 +1250,7 @@ def tb_get_selected_model_scale_info(model_key_selected):
         model_details = tb_processor.esrgan_upscaler.supported_models[
             model_key_selected
         ]
-        scale = model_details.get("N/A")
+        #scale = model_details.get("N/A")
         description = model_details.get("description", "No description available.")
         return f"{description}"
     return "Info: Select a model."
