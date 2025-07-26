@@ -204,7 +204,7 @@ def xy_plot_process(
         "selected_loras": selected_loras,
         "resolutionW": resolutionW,
         "resolutionH": resolutionH,
-        "lora_loaded_names": lora_names,
+        #"lora_loaded_names": lora_names,
         "lora_values": lora_slider_values,
     }
 
@@ -318,8 +318,7 @@ def xy_plot_process(
     # -------------------------- connect with settings --------------------------
     # Ensure settings is available in this scope or passed in.
     # Assuming 'settings' object is available from create_interface's scope.
-    output_dir_setting = settings.get("output_dir", "outputs")
-    mp4_crf_setting = settings.get("mp4_crf", 16)  # Default CRF if not in settings
+    # Default CRF if not in settings
     # -------------------------- connect with settings --------------------------
 
 

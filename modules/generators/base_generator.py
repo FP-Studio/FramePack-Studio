@@ -490,7 +490,7 @@ class BaseModelGenerator(ABC):
                     print(
                         f"State dictionary size: {state_dict_size / (1024**3):.2f} GB"
                     )
-                except:
+                except Exception:
                     pass
 
                 try:
@@ -501,7 +501,7 @@ class BaseModelGenerator(ABC):
                     print(
                         f"Freed state dictionary size: {state_dict_size / (1024**3):.2f} GB"
                     )
-                except:
+                except Exception:
                     print("Could not free state dictionary from memory.")
 
             except Exception as e:

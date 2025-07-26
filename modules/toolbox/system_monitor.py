@@ -125,11 +125,11 @@ class SystemMonitor:
                 ):  # Try to parse what we can if format is just partially off
                     try:
                         metrics["memory_used_gb"] = float(parts[0]) / 1024
-                    except:
+                    except Exception:
                         pass
                     try:
                         metrics["memory_total_gb"] = float(parts[1]) / 1024
-                    except:
+                    except Exception:
                         pass
         else:  # Should have been caught by try-except, but as a final safety
             metrics = {
@@ -313,7 +313,7 @@ class SystemMonitor:
                 with open("/sys/class/drm/card0/device/vendor", "r") as f:
                     return "0x1002" in f.read()  # AMD's PCI vendor ID
             return False
-        except:
+        except Exception:
             return False
 
     @classmethod

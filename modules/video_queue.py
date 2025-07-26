@@ -1338,34 +1338,6 @@ class VideoJobQueue:
                     params["metadata_dir"] = metadata_dir
                     params["input_files_dir"] = input_files_dir
 
-                    # Create a dummy preview image for the job
-                    dummy_preview = np.zeros((64, 64, 3), dtype=np.uint8)
-
-                    # Create progress data with the dummy preview
-                    from diffusers_helper.gradio.progress_bar import (
-                        make_progress_bar_html,
-                    )
-
-                    initial_progress_data = {
-                        "preview": dummy_preview,
-                        "desc": "Imported job...",
-                        "html": make_progress_bar_html(0, "Imported job..."),
-                    }
-
-                    # Create a dummy preview image for the job
-                    dummy_preview = np.zeros((64, 64, 3), dtype=np.uint8)
-
-                    # Create progress data with the dummy preview
-                    from diffusers_helper.gradio.progress_bar import (
-                        make_progress_bar_html,
-                    )
-
-                    initial_progress_data = {
-                        "preview": dummy_preview,
-                        "desc": "Imported job...",
-                        "html": make_progress_bar_html(0, "Imported job..."),
-                    }
-
                     # Create a new job
                     job = Job(
                         id=job_id,

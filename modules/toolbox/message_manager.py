@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import List
 import queue
 import threading
@@ -22,7 +21,7 @@ class MessageManager:
     def add_message(self, message: str, message_type: str = "INFO") -> None:
         """Add a new message with minimal timestamp and icon."""
         # Only show hours:minutes for timestamps
-        timestamp = datetime.now().strftime("%H:%M")
+        #timestamp = datetime.now().strftime("%H:%M")
         icon = self._formats.get(message_type, "•")
 
         # Format filename paths to be more readable

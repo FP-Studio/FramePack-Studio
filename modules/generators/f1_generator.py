@@ -124,9 +124,7 @@ class F1ModelGenerator(BaseModelGenerator):
         """
         # F1 model uses a different indices approach
         # latent_window_sizeが4.5の場合は特別に5を使用
-        effective_window_size = (
-            5 if latent_window_size == 4.5 else int(latent_window_size)
-        )
+       
         indices = torch.arange(0, sum([1, 16, 2, 1, latent_window_size])).unsqueeze(0)
         (
             clean_latent_indices_start,
