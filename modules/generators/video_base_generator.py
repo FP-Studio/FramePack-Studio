@@ -431,7 +431,7 @@ class VideoBaseModelGenerator(BaseModelGenerator):
                     ]  # Shape: (1, channels, batch_size, height, width)
                     try:
                         # Log GPU memory before encoding (removed for now since it's never read)
-                        #if device == "cuda":
+                        # if device == "cuda":
                         #    free_mem = torch.cuda.memory_allocated() / 1024**3
                         batch_latent = vae_encode(batch, self.vae)
                         # Synchronize CUDA to catch issues

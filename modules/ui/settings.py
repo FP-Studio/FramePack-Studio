@@ -143,7 +143,7 @@ def create_settings_ui(settings, get_latents_display_top, model_type_choices):
                     info="Select the LoRA loader to use. 'diffusers' for Diffusers format, 'lora_ready' for Kohya-ss format.",
                     interactive=True,
                 )
-                
+
                 reuse_model_instance = gr.Checkbox(
                     label="Reuse Model Instance",
                     value=settings.get("reuse_model_instance", False),

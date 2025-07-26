@@ -1137,7 +1137,7 @@ class VideoProcessor:
             # High-quality GIF generation is a two-pass process.
             self.message_manager.add_message("Generating high-quality GIF (2-pass)...")
             # Pass 1: Generate a color palette.
-            
+
             vf_parts.append("split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse")
             ffmpeg_cmd.extend(["-an"])  # No audio in GIFs
 

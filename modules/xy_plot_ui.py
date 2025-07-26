@@ -204,7 +204,7 @@ def xy_plot_process(
         "selected_loras": selected_loras,
         "resolutionW": resolutionW,
         "resolutionH": resolutionH,
-        #"lora_loaded_names": lora_names,
+        # "lora_loaded_names": lora_names,
         "lora_values": lora_slider_values,
     }
 

@@ -60,6 +60,7 @@ if __name__ == "__main__":
 import gradio as gr
 import imageio  # Added for reading frame dimensions
 import torch
+
 # ruff: noqa: I001
 from torchvision.transforms.functional import rgb_to_grayscale
 
@@ -71,14 +72,14 @@ sys.modules.setdefault(
 )
 
 # --- Local Application Imports ---
-from modules.settings import Settings # noqa: E402
-from modules.toolbox.message_manager import MessageManager # noqa: E402
-from modules.toolbox.setup_ffmpeg import setup_ffmpeg # noqa: E402
-from modules.toolbox.system_monitor import SystemMonitor # noqa: E402
-from modules.toolbox.toolbox_processor import VideoProcessor # noqa: E402
-from modules.generators.base_generator import BaseModelGenerator # noqa: E402
-from modules.studio_manager import StudioManager # noqa: E402
-from modules.video_queue import JobStatus # noqa: E402
+from modules.settings import Settings  # noqa: E402
+from modules.toolbox.message_manager import MessageManager  # noqa: E402
+from modules.toolbox.setup_ffmpeg import setup_ffmpeg  # noqa: E402
+from modules.toolbox.system_monitor import SystemMonitor  # noqa: E402
+from modules.toolbox.toolbox_processor import VideoProcessor  # noqa: E402
+from modules.generators.base_generator import BaseModelGenerator  # noqa: E402
+from modules.studio_manager import StudioManager  # noqa: E402
+from modules.video_queue import JobStatus  # noqa: E402
 
 # Attempt to import helper, with a fallback if it's missing.
 try:
@@ -1161,7 +1162,7 @@ def tb_handle_upscale_video(
     if not model_key_selected:
         tb_message_mgr.add_warning("No upscale model selected.")
         return None, tb_update_messages()
-    
+
     try:
         output_scale_factor_float = float(output_scale_factor_from_slider)
         if not (output_scale_factor_float >= 0.25):
@@ -1250,7 +1251,7 @@ def tb_get_selected_model_scale_info(model_key_selected):
         model_details = tb_processor.esrgan_upscaler.supported_models[
             model_key_selected
         ]
-        #scale = model_details.get("N/A")
+        # scale = model_details.get("N/A")
         description = model_details.get("description", "No description available.")
         return f"{description}"
     return "Info: Select a model."
