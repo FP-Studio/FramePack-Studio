@@ -104,15 +104,22 @@ def _run_inference(text_to_enhance: str) -> str:
         messages, tokenize=False, add_generation_prompt=True
     )
 
-    model_inputs = tokenizer([text], return_tensors="pt").to(DEVICE)
+    # When tokenizing, the tokenizer can return the attention_mask directly.
+    model_inputs = tokenizer([text], return_tensors="pt", padding=True).to(DEVICE)
+
+    # Set pad_token_id to eos_token_id if it's not already set
+    if tokenizer.pad_token_id is None:
+        tokenizer.pad_token_id = tokenizer.eos_token_id
 
     generated_ids = model.generate(
         model_inputs.input_ids,
+        attention_mask=model_inputs.attention_mask, 
         max_new_tokens=256,
         do_sample=True,
         temperature=0.5,
         top_p=0.95,
         top_k=30,
+        pad_token_id=tokenizer.pad_token_id
     )
 
     generated_ids = [
