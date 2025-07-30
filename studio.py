@@ -3,8 +3,27 @@ import argparse
 import os
 import shutil
 import time
+import logging
 from pathlib import PurePath
+# Configure logging
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)  
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.ERROR)  
+file_handler = logging.FileHandler("studio.log")
+file_handler.setLevel(logging.DEBUG) 
 
+formatter = logging.Formatter(
+    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+
+console_handler.setFormatter(formatter)
+file_handler.setFormatter(formatter)
+
+logger.addHandler(console_handler)
+logger.addHandler(file_handler)
+
+logger.info("Application starting up.")
 # Set environment variables
 STUDIO_HF_HOME = os.path.abspath(
     os.path.realpath(os.path.join(os.path.dirname(__file__), "./hf_download"))
@@ -38,6 +57,8 @@ from modules.pipelines.worker import worker
 from modules.studio_manager import StudioManager
 from modules.ui.queue import format_queue_status
 from modules.video_queue import JobStatus
+
+
 
 
 # Try to suppress annoyingly persistent Windows asyncio proactor errors
