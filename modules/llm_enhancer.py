@@ -113,13 +113,13 @@ def _run_inference(text_to_enhance: str) -> str:
 
     generated_ids = model.generate(
         model_inputs.input_ids,
-        attention_mask=model_inputs.attention_mask, 
+        attention_mask=model_inputs.attention_mask,
         max_new_tokens=256,
         do_sample=True,
         temperature=0.5,
         top_p=0.95,
         top_k=30,
-        pad_token_id=tokenizer.pad_token_id
+        pad_token_id=tokenizer.pad_token_id,
     )
 
     generated_ids = [

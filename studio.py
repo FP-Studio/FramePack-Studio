@@ -5,17 +5,16 @@ import shutil
 import time
 import logging
 from pathlib import PurePath
+
 # Configure logging
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)  
+logger.setLevel(logging.INFO)
 console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.ERROR)  
+console_handler.setLevel(logging.ERROR)
 file_handler = logging.FileHandler("studio.log")
-file_handler.setLevel(logging.DEBUG) 
+file_handler.setLevel(logging.DEBUG)
 
-formatter = logging.Formatter(
-    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 console_handler.setFormatter(formatter)
 file_handler.setFormatter(formatter)
@@ -57,8 +56,6 @@ from modules.pipelines.worker import worker
 from modules.studio_manager import StudioManager
 from modules.ui.queue import format_queue_status
 from modules.video_queue import JobStatus
-
-
 
 
 # Try to suppress annoyingly persistent Windows asyncio proactor errors

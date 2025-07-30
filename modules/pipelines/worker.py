@@ -39,6 +39,7 @@ from modules.studio_manager import StudioManager
 logger = logging.getLogger(__name__)
 logger.info("Worker module loaded.")
 
+
 @torch.no_grad()
 def get_cached_or_encode_prompt(
     prompt,
@@ -149,7 +150,9 @@ def worker(
                 f"Worker.py: Error - '{DUMMY_LORA_NAME}' was selected but not filtered out."
             )
         elif DUMMY_LORA_NAME in selected_loras:
-            logger.info(f"Worker.py: Filtered out '{DUMMY_LORA_NAME}' from selected LoRAs.")
+            logger.info(
+                f"Worker.py: Filtered out '{DUMMY_LORA_NAME}' from selected LoRAs."
+            )
     elif (
         selected_loras is not None
     ):  # If it's a single string (should not happen with multiselect dropdown)
@@ -1096,7 +1099,7 @@ def worker(
             prev_prompt = current_prompt
             next_prompt = current_prompt
             logging.debug(f"Prompt sections {prompt_sections}")
-            logging.debug(f"Change Indicies {prompt_change_indices}")              
+            logging.debug(f"Change Indicies {prompt_change_indices}")
             # Only try to blend if blend_sections > 0 and we have prompt change indices and multiple sections
             try:
                 blend_sections_int = int(blend_sections)
@@ -1581,7 +1584,9 @@ def worker(
                                 )
 
                                 if combined_result:
-                                    logger.info(f"Combined video saved to: {combined_result}")
+                                    logger.info(
+                                        f"Combined video saved to: {combined_result}"
+                                    )
                                     stream_to_use.output_queue.push(
                                         ("file", combined_result)
                                     )
@@ -1644,7 +1649,9 @@ def worker(
                                     "copy",
                                     combined_output_filename,
                                 ]
-                                logger.info(f"Running ffmpeg command: {' '.join(ffmpeg_cmd)}")
+                                logger.info(
+                                    f"Running ffmpeg command: {' '.join(ffmpeg_cmd)}"
+                                )
                                 subprocess.run(
                                     ffmpeg_cmd,
                                     check=True,
@@ -1722,13 +1729,15 @@ def worker(
                             target_fps=input_video_fps_for_combine,
                             crf_value=current_crf,
                         )
-                        )
+                    )
                     if combined_sequential_result_path:
                         stream_to_use.output_queue.push(
                             ("file", combined_sequential_result_path)
                         )
             except Exception as e:
-                logger.error(f"Error creating combined video ({job_id}_combined.mp4): {e}")
+                logger.error(
+                    f"Error creating combined video ({job_id}_combined.mp4): {e}"
+                )
                 logger.error(traceback.format_exc())
     # Final verification of LoRA state
     if studio_module.current_generator and studio_module.current_generator.transformer:
