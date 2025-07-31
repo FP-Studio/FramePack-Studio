@@ -769,6 +769,7 @@ interface = create_interface(
     job_queue=job_queue,
     settings=settings,
     lora_names=lora_names,  # Explicitly pass the found LoRA names
+    enumerate_lora_dir_fn=enumerate_lora_dir,
 )
 
 if __name__ == "__main__":

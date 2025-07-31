@@ -224,13 +224,15 @@ def create_generate_ui(
                         info="Generate a new random seed for each job",
                     )
                 with gr.Accordion("LoRAs", open=False):
-                    lora_selector = gr.Dropdown(
-                        choices=lora_names,
-                        label="Select LoRAs to Load",
-                        multiselect=True,
-                        value=[],
-                        info="Select one or more LoRAs to use for this job",
-                    )
+                    with gr.Row():
+                        lora_selector = gr.Dropdown(
+                            choices=lora_names,
+                            label="Select LoRAs to Load",
+                            multiselect=True,
+                            value=[],
+                            info="Select one or more LoRAs to use for this job",
+                            scale=10,
+                        )
                     lora_names_states = gr.State(lora_names)
                     lora_sliders = {
                         lora: gr.Slider(
@@ -244,6 +246,10 @@ def create_generate_ui(
                         )
                         for lora in lora_names
                     }
+                    with gr.Row():
+                        refresh_loras_button = gr.Button(
+                            "🔄 Refresh", variant="secondary"
+                        )
                 with gr.Accordion("Latent Image Options", open=False):
                     latent_type = gr.Dropdown(
                         ["Noise", "White", "Black", "Green Screen"],
@@ -460,6 +466,7 @@ def create_generate_ui(
         "seed": seed,
         "randomize_seed": randomize_seed,
         "lora_selector": lora_selector,
+        "refresh_loras_button": refresh_loras_button,
         "lora_names_states": lora_names_states,
         "lora_sliders": lora_sliders,
         "latent_type": latent_type,

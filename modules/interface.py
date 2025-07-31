@@ -37,6 +37,7 @@ def create_interface(
     default_prompt: str = "[1s: The person waves hello] [3s: The person jumps up and down] [5s: The person does a dance]",
     lora_names: list = [],
     lora_values: list = [],
+    enumerate_lora_dir_fn=None,
 ):
     """
     Create the Gradio interface for the video generation application
@@ -258,6 +259,14 @@ def create_interface(
         connect_settings_events(
             s, g, settings, create_latents_layout_update, tb_processor
         )
+
+        def refresh_loras():
+            if enumerate_lora_dir_fn:
+                new_lora_names = enumerate_lora_dir_fn()
+                return gr.update(choices=new_lora_names)
+            return gr.update()
+
+        g["refresh_loras_button"].click(fn=refresh_loras, outputs=[g["lora_selector"]])
 
         # General Connections
         def initial_gallery_load():
