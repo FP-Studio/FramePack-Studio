@@ -20,6 +20,8 @@ torchsde==0.2.6
 tqdm
 timm
 transformers==4.46.2
+fastapi
+uvicorn
 
 # for toolbox
 basicsr

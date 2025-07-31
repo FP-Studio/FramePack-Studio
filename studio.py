@@ -35,6 +35,10 @@ os.environ["HF_HOME"] = STUDIO_HF_HOME
 os.environ["TOKENIZERS_PARALLELISM"] = "false"  # Prevent tokenizers parallelism warning
 
 # ruff: noqa: E402 - Disable E402 for imports at the top of the file. HF_HOME must be set before importing diffusers and transformers.
+import uvicorn
+import threading
+from api import app as api_app
+
 # Site packages
 from diffusers import AutoencoderKLHunyuanVideo
 from transformers import LlamaModel, CLIPTextModel, LlamaTokenizerFast, CLIPTokenizer
@@ -773,7 +777,17 @@ interface = create_interface(
     enumerate_lora_dir_fn=enumerate_lora_dir,
 )
 
+
+def run_api():
+    uvicorn.run(api_app, host="0.0.0.0", port=8000)
+
+
 if __name__ == "__main__":
+    # Launch the API in a separate thread
+    api_thread = threading.Thread(target=run_api)
+    api_thread.daemon = True
+    api_thread.start()
+
     # Launch the interface
     interface.launch(
         server_name=args.server,
