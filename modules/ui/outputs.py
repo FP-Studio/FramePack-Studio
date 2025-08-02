@@ -26,6 +26,7 @@ def create_outputs_ui(settings):
                 columns=[4], allow_preview=False, object_fit="cover", height="auto"
             )
             refresh_gallery_button = gr.Button("🔄 Update Gallery")
+            delete_button = gr.Button("🗑️ Delete Selected", visible=False)
         with gr.Column(scale=5):
             video_out = gr.Video(sources=[], autoplay=True, loop=True, visible=False)
         with gr.Column(scale=1):
@@ -42,6 +43,8 @@ def create_outputs_ui(settings):
         "send_to_toolbox_btn": send_to_toolbox_btn,
         "outputDirectory_video": outputDirectory_video,
         "outputDirectory_metadata": outputDirectory_metadata,
+        "delete_button": delete_button,
+        "delete_selected_prefix_state": gr.State(None),
     }
 
 
@@ -124,7 +127,62 @@ def connect_outputs_events(o, tb_target_video_input, main_tabs_component):
             gr.update(visible=True),
             video_path,
         )
-
+    
+    def delete_selected_item(selected_prefix):
+        if not selected_prefix:
+            return (
+                gr.update(visible=False),
+                None,
+                [],
+                gr.update(value=[]),
+                gr.update(visible=False)
+            )
+    
+        deleted_files = []
+    
+        # Delete all MP4 files with the pattern prefix_*.mp4
+        for filename in os.listdir(o["outputDirectory_video"]):
+            if filename.startswith(selected_prefix + "_") and filename.endswith(".mp4"):
+                file_path = os.path.join(o["outputDirectory_video"], filename)
+                try:
+                    os.remove(file_path)
+                    deleted_files.append(filename)
+                except Exception as e:
+                    print(f"Error deleting {filename}: {e}")
+    
+        # Also delete the base prefix.mp4 if it exists
+        base_file = f"{selected_prefix}.mp4"
+        base_path = os.path.join(o["outputDirectory_video"], base_file)
+        if os.path.exists(base_path):
+            try:
+                os.remove(base_path)
+                deleted_files.append(base_file)
+            except Exception as e:
+                print(f"Error deleting {base_file}: {e}")
+    
+        # Delete metadata files (json and png)
+        for ext in ['.json', '.png']:
+            meta_file = f"{selected_prefix}{ext}"
+            meta_path = os.path.join(o["outputDirectory_metadata"], meta_file)
+            if os.path.exists(meta_path):
+                try:
+                    os.remove(meta_path)
+                    deleted_files.append(meta_file)
+                except Exception as e:
+                    print(f"Error deleting {meta_file}: {e}")
+    
+        print(f"Deleted files: {deleted_files}")
+    
+        # Refresh the gallery
+        new_items = get_gallery_items()
+        return (
+            gr.update(visible=False),
+            None,
+            new_items,
+            gr.update(value=[item[0] for item in new_items]),
+            gr.update(visible=False)
+        )
+    
     def on_select(gallery_items, evt: gr.SelectData):
         if evt.index is None or not gallery_items or evt.index >= len(gallery_items):
             return (
@@ -132,6 +190,8 @@ def connect_outputs_events(o, tb_target_video_input, main_tabs_component):
                 gr.update(visible=False),
                 gr.update(visible=False),
                 None,
+                gr.update(visible=False),
+                None  # Return None for selected prefix
             )
 
         prefix = gallery_items[evt.index][1]
@@ -139,15 +199,15 @@ def connect_outputs_events(o, tb_target_video_input, main_tabs_component):
             load_video_and_info_from_prefix(prefix)
         )
 
-        video_out_update = gr.update(
-            value=original_video_path, visible=bool(original_video_path)
+        return (
+            gr.update(value=original_video_path, visible=bool(original_video_path)),
+            gr.update(value=info_string, visible=bool(original_video_path)),
+            gr.update(visible=bool(original_video_path)),
+            new_selected_path,
+            gr.update(visible=bool(original_video_path)),
+            prefix  # Return the selected prefix
         )
-        info_out_update = gr.update(
-            value=info_string, visible=bool(original_video_path)
-        )
-
-        return video_out_update, info_out_update, button_visibility, new_selected_path
-
+        
     def send_to_toolbox(selected_video_path):
         return gr.update(value=selected_video_path), gr.update(selected="toolbox_tab")
 
@@ -162,12 +222,27 @@ def connect_outputs_events(o, tb_target_video_input, main_tabs_component):
             o["info_out"],
             o["send_to_toolbox_btn"],
             o["selected_original_video_path_state"],
+            o["delete_button"],
+            o["delete_selected_prefix_state"],
         ],
     )
     o["send_to_toolbox_btn"].click(
         fn=send_to_toolbox,
         inputs=[o["selected_original_video_path_state"]],
         outputs=[tb_target_video_input, main_tabs_component],
+    )
+    o["delete_button"].click(
+        fn=delete_selected_item,
+        inputs=[
+            o["delete_selected_prefix_state"]
+        ],
+        outputs=[
+            o["video_out"],
+            o["selected_original_video_path_state"],
+            o["gallery_items_state"],
+            o["thumbs"],
+            o["delete_button"],
+        ]
     )
 
     return get_gallery_items
