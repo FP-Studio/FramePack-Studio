@@ -1,6 +1,7 @@
 import gradio as gr
 import os
 import json
+import logging
 
 
 def create_outputs_ui(settings):
@@ -45,7 +46,7 @@ def create_outputs_ui(settings):
 def connect_outputs_events(o, tb_target_video_input, main_tabs_component):
     def get_gallery_items():
         if not os.path.exists(o["outputDirectory_metadata"]):
-            print(
+            logging.error(
                 f"Error: Metadata directory not found at {o['outputDirectory_metadata']}"
             )
             return []

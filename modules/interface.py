@@ -1,4 +1,5 @@
 import gradio as gr
+import logging
 
 from modules.version import APP_VERSION_DISPLAY
 
@@ -160,7 +161,7 @@ def create_interface(
                         if current_job.progress_data
                         else ""
                     )
-                    print(
+                    logging.info(
                         f"Auto-check found current job {job_id}, triggering monitor_job"
                     )
                     return job_id, result, preview, preview, desc, html

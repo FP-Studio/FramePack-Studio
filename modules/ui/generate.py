@@ -3,6 +3,7 @@ import os
 import json
 import random
 import functools
+import logging
 from PIL import Image
 import numpy as np
 
@@ -635,7 +636,7 @@ def connect_generate_events(g, s, q, f):
         )
         new_seed_value = random.randint(0, 21474) if randomize_seed_arg else None
         if new_seed_value:
-            print(f"Generated new seed for next job: {new_seed_value}")
+            logging.info(f"Generated new seed for next job: {new_seed_value}")
         start_button_update_after_add = gr.update(value="🚀 Add to Queue")
         if result and result[1]:
             job_id = result[1]
@@ -769,7 +770,7 @@ def connect_generate_events(g, s, q, f):
         batch_files = args[-1]
         if not batch_files:
             return
-        print(f"Starting batch processing for {len(batch_files)} images.")
+        logging.info(f"Starting batch processing for {len(batch_files)} images.")
         single_job_args = list(args[:-1])
         model_type_arg = single_job_args.pop(0)
         current_seed, randomize_seed_arg = single_job_args[6], single_job_args[7]
@@ -782,8 +783,8 @@ def connect_generate_events(g, s, q, f):
                 if randomize_seed_arg:
                     current_seed = random.randint(0, 21474)
             except Exception as e:
-                print(f"Error loading batch image {image_path}: {e}. Skipping.")
-        print("Batch processing complete.")
+                logging.error(f"Error loading batch image {image_path}: {e}. Skipping.")
+        logging.info("Batch processing complete.")
 
     g["batch_input_images"].change(
         fn=lambda files: gr.update(value=files, visible=bool(files)),
@@ -1109,7 +1110,7 @@ def connect_generate_events(g, s, q, f):
                 )
             return updates
         except Exception as e:
-            print(f"Error loading metadata: {e}")
+            logging.error(f"Error loading metadata: {e}")
             return [gr.update()] * num_outputs
 
     g["json_upload"].change(

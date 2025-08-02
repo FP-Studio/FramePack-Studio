@@ -1,5 +1,6 @@
 import gradio as gr
 import time
+import logging
 from modules.video_queue import JobStatus
 
 
@@ -61,10 +62,10 @@ def update_queue_status_with_thumbnails():
             job_queue.current_job.status = JobStatus.RUNNING
         return format_queue_status(jobs)
     except ImportError:
-        print("Error: Could not import job_queue. Queue status update might fail.")
+        logging.error("Error: Could not import job_queue. Queue status update might fail.")
         return []
     except Exception as e:
-        print(f"Error updating queue status: {e}")
+        logging.error(f"Error updating queue status: {e}")
         return []
 
 
