@@ -26,6 +26,9 @@ from modules.ui.queue import (
 from modules.ui.outputs import create_outputs_ui, connect_outputs_events
 from modules.ui.settings import create_settings_ui, connect_settings_events
 
+logger = logging.getLogger(__name__)
+logger.info("Interface module loaded.")
+
 
 def create_interface(
     process_fn,

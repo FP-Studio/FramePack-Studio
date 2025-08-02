@@ -3,6 +3,8 @@ import os
 import json
 import logging
 
+logger = logging.getLogger(__name__)
+
 
 def create_outputs_ui(settings):
     outputDirectory_video = settings.get(

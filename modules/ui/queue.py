@@ -3,6 +3,8 @@ import time
 import logging
 from modules.video_queue import JobStatus
 
+logger = logging.getLogger(__name__)
+
 
 def format_queue_status(jobs):
     rows = []
@@ -62,7 +64,9 @@ def update_queue_status_with_thumbnails():
             job_queue.current_job.status = JobStatus.RUNNING
         return format_queue_status(jobs)
     except ImportError:
-        logging.error("Error: Could not import job_queue. Queue status update might fail.")
+        logging.error(
+            "Error: Could not import job_queue. Queue status update might fail."
+        )
         return []
     except Exception as e:
         logging.error(f"Error updating queue status: {e}")

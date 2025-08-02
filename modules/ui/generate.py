@@ -14,6 +14,8 @@ from modules.llm_captioner import caption_image
 
 PRESET_FILE = os.path.join(".framepack", "generation_presets.json")
 
+logger = logging.getLogger(__name__)
+
 
 def load_presets(model_type):
     if not os.path.exists(PRESET_FILE) or not os.path.isfile(PRESET_FILE):
