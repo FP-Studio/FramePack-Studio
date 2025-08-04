@@ -95,7 +95,7 @@ class Job:
             if isinstance(self.input_image, np.ndarray):
                 # Handle numpy array (image)
                 img = Image.fromarray(self.input_image)
-                img.thumbnail((100, 100))
+                img.thumbnail((150, 150))
                 buffered = io.BytesIO()
                 img.save(buffered, format="PNG")
                 self.thumbnail = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode()}"
@@ -177,7 +177,7 @@ class Job:
                             # DEBUG IMAGE SAVING REMOVED
                             # Use the last frame for the thumbnail
                             img = Image.fromarray(last_frame)
-                            img.thumbnail((100, 100))
+                            img.thumbnail((150, 150))
                             buffered = io.BytesIO()
                             img.save(buffered, format="PNG")
                             self.thumbnail = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode()}"
@@ -186,7 +186,7 @@ class Job:
                             print("No frames were read, using red thumbnail")
                             # Fallback to red thumbnail if no frames were read - more visible for debugging
                             img = Image.new(
-                                "RGB", (100, 100), (255, 0, 0)
+                                "RGB", (150, 150), (255, 0, 0)
                             )  # Red for video
                             buffered = io.BytesIO()
                             img.save(buffered, format="PNG")
@@ -264,7 +264,7 @@ class Job:
                             if frame_for_thumbnail is not None:
                                 # Convert to PIL Image and create a thumbnail
                                 img = Image.fromarray(frame_for_thumbnail)
-                                img.thumbnail((100, 100))
+                                img.thumbnail((150, 150))
                                 buffered = io.BytesIO()
                                 img.save(buffered, format="PNG")
                                 self.thumbnail = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode()}"
@@ -273,7 +273,7 @@ class Job:
                                 print("No frames were extracted, using blue thumbnail")
                                 # Fallback to blue thumbnail if no frames were extracted
                                 img = Image.new(
-                                    "RGB", (100, 100), (0, 0, 255)
+                                    "RGB", (150, 150), (0, 0, 255)
                                 )  # Blue for video
                                 buffered = io.BytesIO()
                                 img.save(buffered, format="PNG")
@@ -281,7 +281,7 @@ class Job:
                         except Exception:
                             # Fallback to blue thumbnail on error
                             img = Image.new(
-                                "RGB", (100, 100), (0, 0, 255)
+                                "RGB", (150, 150), (0, 0, 255)
                             )  # Blue for video
                             buffered = io.BytesIO()
                             img.save(buffered, format="PNG")
@@ -301,7 +301,7 @@ class Job:
                     traceback.print_exc()
                     # Fallback to bright green thumbnail on error to make it more visible
                     img = Image.new(
-                        "RGB", (100, 100), (0, 255, 0)
+                        "RGB", (150, 150), (0, 255, 0)
                     )  # Bright green for error
                     buffered = io.BytesIO()
                     img.save(buffered, format="PNG")
@@ -320,7 +320,7 @@ class Job:
                 "Green Screen": (0, 177, 64),
             }
             color = color_map.get(self.latent_type, (0, 0, 0))
-            img = Image.new("RGB", (100, 100), color)
+            img = Image.new("RGB", (150, 150), color)
             buffered = io.BytesIO()
             img.save(buffered, format="PNG")
             self.thumbnail = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode()}"
