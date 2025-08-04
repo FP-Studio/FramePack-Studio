@@ -48,6 +48,8 @@ class JobStatus(Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+    CANCELLING = "cancelling"
+    EDITING = "editing"
 
 
 class JobType(Enum):
@@ -896,9 +898,9 @@ class VideoJobQueue:
                 if hasattr(job, "stream") and job.stream:
                     job.stream.input_queue.push("end")
 
-                # Mark job as cancelled (this will be confirmed when the worker processes the end signal)
-                job.status = JobStatus.CANCELLED
-                job.completed_at = time.time()  # Mark completion time
+                # Mark job as cancelling (will be set to CANCELLED when the worker processes the end signal)
+                job.status = JobStatus.CANCELLING
+                # Don't set completed_at yet - wait until actually cancelled
 
                 # Let the worker loop handle the transition to the next job
                 # This ensures the current job is fully processed before switching
@@ -1026,6 +1028,9 @@ class VideoJobQueue:
 
             if job.status == JobStatus.RUNNING:
                 return 0
+
+            if job.status == JobStatus.CANCELLING:
+                return 0  # Cancelling jobs are also actively being processed
 
             if job.status != JobStatus.PENDING:
                 return None
@@ -1688,6 +1693,7 @@ class VideoJobQueue:
                     self.is_processing = True
 
                 job_completed = False
+                job_was_cancelled = False  # Track if job was cancelled during processing
 
                 try:
                     if self.worker_function is None:
@@ -1721,11 +1727,12 @@ class VideoJobQueue:
                     while True:
                         # Check if job has been cancelled before processing next output
                         with self.lock:
-                            if job.status == JobStatus.CANCELLED:
+                            if job.status in [JobStatus.CANCELLED, JobStatus.CANCELLING]:
                                 print(
                                     f"Job {job_id} was cancelled, breaking out of processing loop"
                                 )
                                 job_completed = True
+                                job_was_cancelled = True
                                 break
 
                         # Get current time for activity checks
@@ -1761,6 +1768,11 @@ class VideoJobQueue:
 
                             elif flag == "end":
                                 print(f"Received end signal for job {job_id}")
+                                # Check if job was cancelled when end signal was received
+                                with self.lock:
+                                    if job.status in [JobStatus.CANCELLED, JobStatus.CANCELLING]:
+                                        job_was_cancelled = True
+                                        print(f"Job {job_id} end signal received due to cancellation")
                                 job_completed = True
                                 break
 
@@ -1779,8 +1791,14 @@ class VideoJobQueue:
                     traceback.print_exc()
                     print(f"Error processing job {job_id}: {e}")
                     with self.lock:
-                        job.status = JobStatus.FAILED
-                        job.error = str(e)
+                        # Check if job was cancelled before the exception occurred
+                        if job.status in [JobStatus.CANCELLED, JobStatus.CANCELLING]:
+                            job_was_cancelled = True
+                            job.status = JobStatus.CANCELLED
+                            print(f"Job {job_id} was cancelled before exception occurred")
+                        else:
+                            job.status = JobStatus.FAILED
+                            job.error = str(e)
                         job.completed_at = time.time()
                     job_completed = True
 
@@ -1789,13 +1807,27 @@ class VideoJobQueue:
                         # Make sure we properly clean up the job state
                         if job.status == JobStatus.RUNNING:
                             if job_completed:
-                                job.status = JobStatus.COMPLETED
+                                if job_was_cancelled:
+                                    # Job was cancelled but status is still RUNNING - mark as CANCELLED
+                                    job.status = JobStatus.CANCELLED
+                                    print(f"Job {job_id} was cancelled but status was still RUNNING, correcting to CANCELLED")
+                                else:
+                                    # Job completed normally
+                                    job.status = JobStatus.COMPLETED
                             else:
                                 # Something went wrong but we didn't mark it as completed
                                 job.status = JobStatus.FAILED
                                 job.error = "Job processing was interrupted"
 
                             job.completed_at = time.time()
+                        elif job.status == JobStatus.CANCELLING:
+                            # Transition from CANCELLING to CANCELLED
+                            job.status = JobStatus.CANCELLED
+                            job.completed_at = time.time()
+                        elif job.status == JobStatus.CANCELLED:
+                            # Job was already marked as cancelled, ensure completed_at is set
+                            if not job.completed_at:
+                                job.completed_at = time.time()
 
                     print(f"Finishing job {job_id} with status {job.status}")
                     self.is_processing = False

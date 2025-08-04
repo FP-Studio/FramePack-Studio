@@ -444,9 +444,9 @@ def end_process():
             if job_queue.current_job.stream:
                 job_queue.current_job.stream.input_queue.push("end")
 
-            # Mark the job as cancelled
-            job_queue.current_job.status = JobStatus.CANCELLED
-            job_queue.current_job.completed_at = time.time()  # Set completion time
+            # Mark the job as cancelling (will be set to CANCELLED when the worker processes the end signal)
+            job_queue.current_job.status = JobStatus.CANCELLING
+            # Don't set completed_at yet - wait until actually cancelled
 
     # Force an update to the queue status
     return update_queue_status()
@@ -461,8 +461,9 @@ def update_queue_status():
 
     # Make sure to update current running job info
     if job_queue.current_job:
-        # Make sure the running job is showing status = RUNNING
-        job_queue.current_job.status = JobStatus.RUNNING
+        # Only set to RUNNING if not already in a cancellation state
+        if job_queue.current_job.status not in [JobStatus.CANCELLING, JobStatus.CANCELLED]:
+            job_queue.current_job.status = JobStatus.RUNNING
 
     # Update the toolbar stats
     pending_count = 0
@@ -476,6 +477,8 @@ def update_queue_status():
                 pending_count += 1
             elif status == "JobStatus.RUNNING":
                 running_count += 1
+            elif status == "JobStatus.CANCELLING":
+                running_count += 1  # Cancelling jobs are still actively processing
             elif status == "JobStatus.COMPLETED":
                 completed_count += 1
 
@@ -522,7 +525,7 @@ def monitor_job(job_id=None):
             if (
                 current_job
                 and current_job.id != job_id
-                and current_job.status == JobStatus.RUNNING
+                and current_job.status in [JobStatus.RUNNING, JobStatus.CANCELLING]
             ):
                 # Always switch to the current running job
                 job_id = current_job.id
@@ -733,6 +736,22 @@ def monitor_job(job_id=None):
                 ),
             )
             break
+
+        elif job.status == JobStatus.CANCELLING:
+            # Show cancelling message and keep "Cancelling..." button
+            right_preview, top_preview = get_preview_updates(last_preview) 
+            yield (
+                job.result,
+                right_preview,
+                top_preview,
+                "Cancelling job...",
+                make_progress_bar_html(0, "Cancelling..."),
+                gr.update(interactive=True),
+                gr.update(
+                    interactive=False, value="Cancelling...", visible=True
+                ),
+            )
+            # Don't break - continue monitoring until job transitions to CANCELLED
 
         elif job.status == JobStatus.CANCELLED:
             # Show cancelled message and reset the button text
