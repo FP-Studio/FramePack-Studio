@@ -1190,13 +1190,13 @@ class VideoJobQueue:
                         "cfg": job_data.get("cfg", 1.0),
                         "gs": job_data.get("gs", 10.0),
                         "rs": job_data.get("rs", 0.0),
-                        "latent_type": job_data.get("latent_type", "Black"),
+                        "latent_type": job_data.get("latent_type", "Noise"),
                         "total_second_length": job_data.get("total_second_length", 6),
                         "blend_sections": job_data.get("blend_sections", 4),
                         "latent_window_size": job_data.get("latent_window_size", 9),
                         "resolutionW": job_data.get("resolutionW", 640),
                         "resolutionH": job_data.get("resolutionH", 640),
-                        "use_magcache": job_data.get("use_magcache", False),
+                        "use_magcache": job_data.get("use_magcache", True),
                         "magcache_threshold": job_data.get("magcache_threshold", 0.1),
                         "magcache_max_consecutive_skips": job_data.get(
                             "magcache_max_consecutive_skips", 2
@@ -1208,7 +1208,7 @@ class VideoJobQueue:
                         "input_image": None,
                         "end_frame_image": None,
                         "end_frame_strength": job_data.get("end_frame_strength", 1.0),
-                        "use_teacache": job_data.get("use_teacache", True),
+                        "use_teacache": job_data.get("use_teacache", False),
                         "teacache_num_steps": job_data.get("teacache_num_steps", 25),
                         "teacache_rel_l1_thresh": job_data.get(
                             "teacache_rel_l1_thresh", 0.15
