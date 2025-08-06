@@ -9,8 +9,8 @@ import numpy as np
 
 from diffusers_helper.bucket_tools import find_nearest_bucket
 from modules.xy_plot_ui import create_xy_plot_ui
-from modules.llm_enhancer import enhance_prompt
-from modules.llm_captioner import caption_image
+from modules.llm_enhancer import enhance_prompt, stop_enhancing
+from modules.llm_captioner import caption_image, stop_captioning
 
 PRESET_FILE = os.path.join(".framepack", "generation_presets.json")
 
@@ -187,6 +187,22 @@ def create_generate_ui(
                 with gr.Row():
                     enhance_prompt_btn = gr.Button("✨ Enhance", scale=1)
                     caption_btn = gr.Button("✨ Caption", scale=1)
+                with gr.Row(visible=False) as enhance_status_row:
+                    enhance_status = gr.Textbox(
+                        label="Enhance Status",
+                        value="Enhancing...",
+                        interactive=False,
+                        scale=2,
+                    )
+                    stop_enhance_btn = gr.Button("❌ Stop", variant="stop", scale=1)
+                with gr.Row(visible=False) as caption_status_row:
+                    caption_status = gr.Textbox(
+                        label="Caption Status",
+                        value="Captioning...",
+                        interactive=False,
+                        scale=2,
+                    )
+                    stop_caption_btn = gr.Button("❌ Stop", variant="stop", scale=1)
 
                 with gr.Accordion("Prompt Parameters", open=False):
                     n_prompt = gr.Textbox(
@@ -460,6 +476,12 @@ def create_generate_ui(
         "prompt": prompt,
         "enhance_prompt_btn": enhance_prompt_btn,
         "caption_btn": caption_btn,
+        "enhance_status_row": enhance_status_row,
+        "enhance_status": enhance_status,
+        "stop_enhance_btn": stop_enhance_btn,
+        "caption_status_row": caption_status_row,
+        "caption_status": caption_status,
+        "stop_caption_btn": stop_caption_btn,
         "n_prompt": n_prompt,
         "blend_sections": blend_sections,
         "batch_input_images": batch_input_images,
@@ -1143,15 +1165,68 @@ def connect_generate_events(g, s, q, f):
         + list(g["lora_sliders"].values()),
     )
 
-    g["enhance_prompt_btn"].click(
-        fn=lambda p: gr.update(value=enhance_prompt(p)),
+    def enhance_prompt_wrapper(p):
+        yield (
+            gr.update(visible=True),
+            gr.update(interactive=False),
+            gr.update(interactive=False),
+            gr.update(),
+        )
+        enhanced = enhance_prompt(p)
+        yield (
+            gr.update(visible=False),
+            gr.update(interactive=True),
+            gr.update(interactive=True),
+            gr.update(value=enhanced) if enhanced else gr.update(),
+        )
+
+    enhance_event = g["enhance_prompt_btn"].click(
+        fn=enhance_prompt_wrapper,
         inputs=[g["prompt"]],
-        outputs=[g["prompt"]],
+        outputs=[
+            g["enhance_status_row"],
+            g["enhance_prompt_btn"],
+            g["caption_btn"],
+            g["prompt"],
+        ],
     )
-    g["caption_btn"].click(
-        fn=lambda img, p: gr.update(value=caption_image(img)) if img is not None else p,
+    g["stop_enhance_btn"].click(
+        fn=stop_enhancing,
+        outputs=[g["enhance_status_row"], g["enhance_prompt_btn"], g["caption_btn"]],
+    )
+
+    def caption_image_wrapper(img, p):
+        if img is None:
+            yield gr.update(), gr.update(), gr.update(), p
+            return
+
+        yield (
+            gr.update(visible=True),
+            gr.update(interactive=False),
+            gr.update(interactive=False),
+            gr.update(),
+        )
+        captioned = caption_image(img)
+        yield (
+            gr.update(visible=False),
+            gr.update(interactive=True),
+            gr.update(interactive=True),
+            gr.update(value=captioned) if captioned else gr.update(),
+        )
+
+    caption_event = g["caption_btn"].click(
+        fn=caption_image_wrapper,
         inputs=[g["input_image"], g["prompt"]],
-        outputs=[g["prompt"]],
+        outputs=[
+            g["caption_status_row"],
+            g["enhance_prompt_btn"],
+            g["caption_btn"],
+            g["prompt"],
+        ],
+    )
+    g["stop_caption_btn"].click(
+        fn=stop_captioning,
+        outputs=[g["caption_status_row"], g["enhance_prompt_btn"], g["caption_btn"]],
     )
 
     f["block"].load(

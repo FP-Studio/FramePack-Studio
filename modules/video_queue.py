@@ -1287,7 +1287,7 @@ class VideoJobQueue:
                     if "loras" in job_data:
                         lora_data = job_data.get("loras", {})
                         selected_loras = list(lora_data.keys())
-                        lora_values = list(lora_data.values())
+                        lora_values = [[v] for v in lora_data.values()]
                         params["selected_loras"] = selected_loras
                         params["lora_values"] = lora_values
 

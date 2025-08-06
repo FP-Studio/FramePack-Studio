@@ -1,6 +1,26 @@
 import re
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, StoppingCriteria
+
+
+# --- Job State ---
+class JobState:
+    def __init__(self):
+        self.running = False
+        self.interrupted = False
+
+    def reset(self):
+        self.running = False
+        self.interrupted = False
+
+
+enhancer_job_state = JobState()
+
+
+class StopEnhancerCriteria(StoppingCriteria):
+    def __call__(self, input_ids, scores, **kwargs) -> bool:
+        return enhancer_job_state.interrupted
+
 
 # --- Configuration ---
 # Using a smaller, faster model for this feature.
@@ -94,6 +114,9 @@ def _load_enhancing_model():
 def _run_inference(text_to_enhance: str) -> str:
     """Runs the LLM inference to enhance a single piece of text."""
 
+    if enhancer_job_state.interrupted:
+        return ""
+
     formatted_prompt = PROMPT_TEMPLATE.format(text_to_enhance=text_to_enhance)
 
     messages = [
@@ -120,7 +143,11 @@ def _run_inference(text_to_enhance: str) -> str:
         top_p=0.95,
         top_k=30,
         pad_token_id=tokenizer.pad_token_id,
+        stopping_criteria=[StopEnhancerCriteria()],
     )
+
+    if enhancer_job_state.interrupted:
+        return ""
 
     generated_ids = [
         output_ids[len(input_ids) :]
@@ -132,6 +159,14 @@ def _run_inference(text_to_enhance: str) -> str:
     # Clean up the response
     response = response.strip().replace('"', "")
     return response
+
+
+def stop_enhancing():
+    enhancer_job_state.interrupted = True
+
+
+def is_enhancing():
+    return enhancer_job_state.running
 
 
 def unload_enhancing_model():
@@ -155,11 +190,56 @@ def enhance_prompt(prompt_text: str) -> str:
     Returns:
         The enhanced prompt string.
     """
+    enhancer_job_state.reset()
+    enhancer_job_state.running = True
 
-    _load_enhancing_model()
+    try:
+        _load_enhancing_model()
 
-    if not prompt_text:
-        return ""
+        if not prompt_text:
+            return ""
+
+        # Regex to find timestamp sections like [0s: text] or [1.1s-2.2s: text]
+        timestamp_pattern = r"(\[\d+(?:\.\d+)?s(?:-\d+(?:\.\d+)?s)?\s*:\s*)(.*?)(?=\])"
+
+        matches = list(re.finditer(timestamp_pattern, prompt_text))
+
+        if not matches:
+            # No timestamps found, enhance the whole prompt
+            print("LLM Enhancer: Enhancing a simple prompt.")
+            return _run_inference(prompt_text)
+        else:
+            # Timestamps found, enhance each section's text
+            print(
+                f"LLM Enhancer: Enhancing {len(matches)} sections in a timestamped prompt."
+            )
+            enhanced_parts = []
+            last_end = 0
+
+            for match in matches:
+                if enhancer_job_state.interrupted:
+                    return ""
+                # Add the part of the string before the current match (e.g., whitespace)
+                enhanced_parts.append(prompt_text[last_end : match.start()])
+
+                timestamp_prefix = match.group(1)
+                text_to_enhance = match.group(2).strip()
+
+                if text_to_enhance:
+                    enhanced_text = _run_inference(text_to_enhance)
+                    enhanced_parts.append(f"{timestamp_prefix}{enhanced_text}")
+                else:
+                    # Keep empty sections as they are
+                    enhanced_parts.append(f"{timestamp_prefix}")
+
+                last_end = match.end()
+
+            # Add the closing bracket for the last match and any trailing text
+            enhanced_parts.append(prompt_text[last_end:])
+
+            return "".join(enhanced_parts)
+    finally:
+        enhancer_job_state.running = False
 
     # Regex to find timestamp sections like [0s: text] or [1.1s-2.2s: text]
     timestamp_pattern = r"(\[\d+(?:\.\d+)?s(?:-\d+(?:\.\d+)?s)?\s*:\s*)(.*?)(?=\])"
