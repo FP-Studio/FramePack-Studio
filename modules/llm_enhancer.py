@@ -106,14 +106,14 @@ def _run_inference(text_to_enhance: str) -> str:
     generated_ids = model.generate(
         model_inputs.input_ids,
         attention_mask=model_inputs.attention_mask,
-        max_new_tokens=80,   # Further reduced to prevent cutoffs and keep responses concise
+        max_new_tokens=80,  # Further reduced to prevent cutoffs and keep responses concise
         do_sample=True,
-        temperature=0.3,     # Reduced from 0.5 for more focused output
-        top_p=0.9,          # Reduced from 0.95 for faster sampling
-        top_k=20,           # Reduced from 30 for faster sampling
+        temperature=0.3,  # Reduced from 0.5 for more focused output
+        top_p=0.9,  # Reduced from 0.95 for faster sampling
+        top_k=20,  # Reduced from 30 for faster sampling
         pad_token_id=tokenizer.pad_token_id,
         stopping_criteria=[StopEnhancerCriteria()],
-        use_cache=True,     # Enable KV-cache for faster generation
+        use_cache=True,  # Enable KV-cache for faster generation
     )
 
     if enhancer_job_state.interrupted:
@@ -158,14 +158,14 @@ def _run_inference_with_progress(text_to_enhance: str):
     generated_ids = model.generate(
         model_inputs.input_ids,
         attention_mask=model_inputs.attention_mask,
-        max_new_tokens=80,   # Optimized for concise, complete responses
+        max_new_tokens=80,  # Optimized for concise, complete responses
         do_sample=True,
-        temperature=0.3,     # More focused output
-        top_p=0.9,          # Faster sampling
-        top_k=20,           # Faster sampling
+        temperature=0.3,  # More focused output
+        top_p=0.9,  # Faster sampling
+        top_k=20,  # Faster sampling
         pad_token_id=tokenizer.pad_token_id,
         stopping_criteria=[StopEnhancerCriteria()],
-        use_cache=True,     # Enable KV-cache
+        use_cache=True,  # Enable KV-cache
     )
 
     if enhancer_job_state.interrupted:
@@ -189,10 +189,11 @@ def stop_enhancing():
     # Unload model when stopped to free memory
     unload_enhancing_model()
     import gradio as gr
+
     return (
-        gr.update(interactive=True), # re-enable enhance button
-        gr.update(visible=False),    # hide stop enhance button
-        gr.update(interactive=True)  # re-enable caption button
+        gr.update(interactive=True),  # re-enable enhance button
+        gr.update(visible=False),  # hide stop enhance button
+        gr.update(interactive=True),  # re-enable caption button
     )
 
 
@@ -269,7 +270,7 @@ def enhance_prompt(prompt_text: str) -> str:
             enhanced_parts.append(prompt_text[last_end:])
 
             result = "".join(enhanced_parts)
-        
+
         # Unload model after successful completion to free memory
         unload_enhancing_model()
         return result
@@ -319,7 +320,9 @@ def enhance_prompt_with_progress(prompt_text: str):
                     # Unload model if interrupted during inference
                     unload_enhancing_model()
                     return
-                if isinstance(result, str) and not result.startswith(("Preparing", "Tokenizing", "Generating", "Processing")):
+                if isinstance(result, str) and not result.startswith(
+                    ("Preparing", "Tokenizing", "Generating", "Processing")
+                ):
                     final_result = result
                 else:
                     yield result
@@ -334,9 +337,9 @@ def enhance_prompt_with_progress(prompt_text: str):
                     # Unload model if interrupted during processing
                     unload_enhancing_model()
                     return
-                
+
                 yield f"Processing section {i}/{len(matches)}..."
-                
+
                 # Add the part of the string before the current match (e.g., whitespace)
                 enhanced_parts.append(prompt_text[last_end : match.start()])
 
@@ -350,11 +353,13 @@ def enhance_prompt_with_progress(prompt_text: str):
                             # Unload model if interrupted during section processing
                             unload_enhancing_model()
                             return
-                        if isinstance(result, str) and not result.startswith(("Preparing", "Tokenizing", "Generating", "Processing")):
+                        if isinstance(result, str) and not result.startswith(
+                            ("Preparing", "Tokenizing", "Generating", "Processing")
+                        ):
                             enhanced_text = result
                         else:
                             yield f"Section {i}/{len(matches)}: {result}"
-                    
+
                     if enhanced_text:
                         enhanced_parts.append(f"{timestamp_prefix}{enhanced_text}")
                 else:

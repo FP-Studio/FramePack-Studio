@@ -52,10 +52,11 @@ def stop_captioning():
     # Unload model when stopped to free memory
     unload_captioning_model()
     import gradio as gr
+
     return (
-        gr.update(interactive=True), # re-enable enhance button
-        gr.update(visible=False),    # hide stop caption button
-        gr.update(interactive=True)  # re-enable caption button
+        gr.update(interactive=True),  # re-enable enhance button
+        gr.update(visible=False),  # hide stop caption button
+        gr.update(interactive=True),  # re-enable caption button
     )
 
 

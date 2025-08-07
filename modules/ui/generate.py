@@ -9,7 +9,7 @@ import numpy as np
 
 from diffusers_helper.bucket_tools import find_nearest_bucket
 from modules.xy_plot_ui import create_xy_plot_ui
-from modules.llm_enhancer import enhance_prompt, stop_enhancing, enhance_prompt_with_progress
+from modules.llm_enhancer import enhance_prompt, stop_enhancing
 from modules.llm_captioner import caption_image, stop_captioning
 
 PRESET_FILE = os.path.join(".framepack", "generation_presets.json")
@@ -186,9 +186,13 @@ def create_generate_ui(
                     prompt = gr.Textbox(label="Prompt", value=default_prompt, scale=10)
                 with gr.Row():
                     enhance_prompt_btn = gr.Button("✨ Enhance", scale=1)
-                    stop_enhance_btn = gr.Button("❌ Stop Enhance", variant="stop", scale=1, visible=False)
+                    stop_enhance_btn = gr.Button(
+                        "❌ Stop Enhance", variant="stop", scale=1, visible=False
+                    )
                     caption_btn = gr.Button("✨ Caption", scale=1)
-                    stop_caption_btn = gr.Button("❌ Stop Caption", variant="stop", scale=1, visible=False)
+                    stop_caption_btn = gr.Button(
+                        "❌ Stop Caption", variant="stop", scale=1, visible=False
+                    )
 
                 with gr.Accordion("Prompt Parameters", open=False):
                     n_prompt = gr.Textbox(
@@ -1151,23 +1155,25 @@ def connect_generate_events(g, s, q, f):
         # Show stop button, disable enhance and caption buttons
         yield (
             gr.update(interactive=False),  # disable enhance button
-            gr.update(visible=True),       # show stop enhance button
+            gr.update(visible=True),  # show stop enhance button
             gr.update(interactive=False),  # disable caption button
-            gr.update(),                   # prompt unchanged
-        )
-        
-        # Use the simple enhance_prompt function (no progress updates)
-        enhanced = enhance_prompt(p)
-        
-        # Hide stop button, re-enable buttons, update prompt
-        yield (
-            gr.update(interactive=True),                              # re-enable enhance button
-            gr.update(visible=False),                                 # hide stop enhance button
-            gr.update(interactive=True),                              # re-enable caption button
-            gr.update(value=enhanced) if enhanced else gr.update(),  # update prompt with result
+            gr.update(),  # prompt unchanged
         )
 
-    enhance_event = g["enhance_prompt_btn"].click(
+        # Use the simple enhance_prompt function (no progress updates)
+        enhanced = enhance_prompt(p)
+
+        # Hide stop button, re-enable buttons, update prompt
+        yield (
+            gr.update(interactive=True),  # re-enable enhance button
+            gr.update(visible=False),  # hide stop enhance button
+            gr.update(interactive=True),  # re-enable caption button
+            gr.update(value=enhanced)
+            if enhanced
+            else gr.update(),  # update prompt with result
+        )
+
+    g["enhance_prompt_btn"].click(
         fn=enhance_prompt_wrapper,
         inputs=[g["prompt"]],
         outputs=[
@@ -1191,21 +1197,23 @@ def connect_generate_events(g, s, q, f):
         yield (
             gr.update(interactive=False),  # disable enhance button
             gr.update(interactive=False),  # disable caption button
-            gr.update(visible=True),       # show stop caption button
-            gr.update(),                   # prompt unchanged
-        )
-        
-        captioned = caption_image(img)
-        
-        # Hide stop button, re-enable buttons, update prompt
-        yield (
-            gr.update(interactive=True),                               # re-enable enhance button
-            gr.update(interactive=True),                               # re-enable caption button
-            gr.update(visible=False),                                  # hide stop caption button
-            gr.update(value=captioned) if captioned else gr.update(), # update prompt with result
+            gr.update(visible=True),  # show stop caption button
+            gr.update(),  # prompt unchanged
         )
 
-    caption_event = g["caption_btn"].click(
+        captioned = caption_image(img)
+
+        # Hide stop button, re-enable buttons, update prompt
+        yield (
+            gr.update(interactive=True),  # re-enable enhance button
+            gr.update(interactive=True),  # re-enable caption button
+            gr.update(visible=False),  # hide stop caption button
+            gr.update(value=captioned)
+            if captioned
+            else gr.update(),  # update prompt with result
+        )
+
+    g["caption_btn"].click(
         fn=caption_image_wrapper,
         inputs=[g["input_image"], g["prompt"]],
         outputs=[

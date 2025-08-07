@@ -257,7 +257,6 @@ def create_metadata(job_params, job_id, settings, save_placeholder=False):
     # Add LoRA information if present
     selected_loras = job_params.get("selected_loras", [])
     lora_values = job_params.get("lora_values", [])
-    lora_loaded_names = job_params.get("lora_loaded_names", [])
 
     if isinstance(selected_loras, list) and len(selected_loras) > 0:
         lora_data = {}
@@ -266,9 +265,7 @@ def create_metadata(job_params, job_id, settings, save_placeholder=False):
                 # Use the index from selected_loras, not from lora_loaded_names
                 has_lora_values = lora_values is not None and len(lora_values) > 0
                 weight = (
-                    lora_values[i]
-                    if has_lora_values and i < len(lora_values)
-                    else 1.0
+                    lora_values[i] if has_lora_values and i < len(lora_values) else 1.0
                 )
 
                 # Handle different types of weight values
