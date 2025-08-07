@@ -49,6 +49,14 @@ def _load_captioning_model():
 
 def stop_captioning():
     captioner_job_state.interrupted = True
+    # Unload model when stopped to free memory
+    unload_captioning_model()
+    import gradio as gr
+    return (
+        gr.update(interactive=True), # re-enable enhance button
+        gr.update(visible=False),    # hide stop caption button
+        gr.update(interactive=True)  # re-enable caption button
+    )
 
 
 def is_captioning():
@@ -103,12 +111,16 @@ def caption_image(image: np.array):
         )
 
         if captioner_job_state.interrupted:
+            # Unload model if interrupted
+            unload_captioning_model()
             return ""
 
         generated_text = processor.batch_decode(
             generated_ids, skip_special_tokens=True
         )[0]
 
+        # Unload model after successful completion to free memory
+        unload_captioning_model()
         return generated_text
     finally:
         captioner_job_state.running = False
