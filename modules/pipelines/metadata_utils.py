@@ -261,14 +261,13 @@ def create_metadata(job_params, job_id, settings, save_placeholder=False):
 
     if isinstance(selected_loras, list) and len(selected_loras) > 0:
         lora_data = {}
-        for lora_name in selected_loras:
+        for i, lora_name in enumerate(selected_loras):
             try:
-                idx = lora_loaded_names.index(lora_name)
-                # Fix for NumPy array boolean ambiguity
+                # Use the index from selected_loras, not from lora_loaded_names
                 has_lora_values = lora_values is not None and len(lora_values) > 0
                 weight = (
-                    lora_values[idx]
-                    if has_lora_values and idx < len(lora_values)
+                    lora_values[i]
+                    if has_lora_values and i < len(lora_values)
                     else 1.0
                 )
 
@@ -289,7 +288,7 @@ def create_metadata(job_params, job_id, settings, save_placeholder=False):
                     weight_value = float(weight) if weight is not None else 1.0
 
                 lora_data[lora_name] = weight_value
-            except ValueError:
+            except (ValueError, IndexError):
                 lora_data[lora_name] = 1.0
             except Exception:
                 lora_data[lora_name] = 1.0

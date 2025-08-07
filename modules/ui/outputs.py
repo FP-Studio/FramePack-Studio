@@ -127,7 +127,7 @@ def connect_outputs_events(o, tb_target_video_input, main_tabs_component):
             gr.update(visible=True),
             video_path,
         )
-    
+
     def delete_selected_item(selected_prefix):
         if not selected_prefix:
             return (
@@ -135,11 +135,11 @@ def connect_outputs_events(o, tb_target_video_input, main_tabs_component):
                 None,
                 [],
                 gr.update(value=[]),
-                gr.update(visible=False)
+                gr.update(visible=False),
             )
-    
+
         deleted_files = []
-    
+
         # Delete all MP4 files with the pattern prefix_*.mp4
         for filename in os.listdir(o["outputDirectory_video"]):
             if filename.startswith(selected_prefix + "_") and filename.endswith(".mp4"):
@@ -149,7 +149,7 @@ def connect_outputs_events(o, tb_target_video_input, main_tabs_component):
                     deleted_files.append(filename)
                 except Exception as e:
                     print(f"Error deleting {filename}: {e}")
-    
+
         # Also delete the base prefix.mp4 if it exists
         base_file = f"{selected_prefix}.mp4"
         base_path = os.path.join(o["outputDirectory_video"], base_file)
@@ -159,9 +159,9 @@ def connect_outputs_events(o, tb_target_video_input, main_tabs_component):
                 deleted_files.append(base_file)
             except Exception as e:
                 print(f"Error deleting {base_file}: {e}")
-    
+
         # Delete metadata files (json and png)
-        for ext in ['.json', '.png']:
+        for ext in [".json", ".png"]:
             meta_file = f"{selected_prefix}{ext}"
             meta_path = os.path.join(o["outputDirectory_metadata"], meta_file)
             if os.path.exists(meta_path):
@@ -170,9 +170,9 @@ def connect_outputs_events(o, tb_target_video_input, main_tabs_component):
                     deleted_files.append(meta_file)
                 except Exception as e:
                     print(f"Error deleting {meta_file}: {e}")
-    
+
         print(f"Deleted files: {deleted_files}")
-    
+
         # Refresh the gallery
         new_items = get_gallery_items()
         return (
@@ -180,9 +180,9 @@ def connect_outputs_events(o, tb_target_video_input, main_tabs_component):
             None,
             new_items,
             gr.update(value=[item[0] for item in new_items]),
-            gr.update(visible=False)
+            gr.update(visible=False),
         )
-    
+
     def on_select(gallery_items, evt: gr.SelectData):
         if evt.index is None or not gallery_items or evt.index >= len(gallery_items):
             return (
@@ -191,7 +191,7 @@ def connect_outputs_events(o, tb_target_video_input, main_tabs_component):
                 gr.update(visible=False),
                 None,
                 gr.update(visible=False),
-                None  # Return None for selected prefix
+                None,  # Return None for selected prefix
             )
 
         prefix = gallery_items[evt.index][1]
@@ -205,9 +205,9 @@ def connect_outputs_events(o, tb_target_video_input, main_tabs_component):
             gr.update(visible=bool(original_video_path)),
             new_selected_path,
             gr.update(visible=bool(original_video_path)),
-            prefix  # Return the selected prefix
+            prefix,  # Return the selected prefix
         )
-        
+
     def send_to_toolbox(selected_video_path):
         return gr.update(value=selected_video_path), gr.update(selected="toolbox_tab")
 
@@ -233,16 +233,14 @@ def connect_outputs_events(o, tb_target_video_input, main_tabs_component):
     )
     o["delete_button"].click(
         fn=delete_selected_item,
-        inputs=[
-            o["delete_selected_prefix_state"]
-        ],
+        inputs=[o["delete_selected_prefix_state"]],
         outputs=[
             o["video_out"],
             o["selected_original_video_path_state"],
             o["gallery_items_state"],
             o["thumbs"],
             o["delete_button"],
-        ]
+        ],
     )
 
     return get_gallery_items

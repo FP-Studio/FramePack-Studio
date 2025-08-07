@@ -402,18 +402,12 @@ class VideoJobQueue:
 
                 # Create LoRA data dictionary
                 lora_data = {}
-                for lora_name in selected_loras:
+                for i, lora_name in enumerate(selected_loras):
                     try:
-                        # Find the index of the LoRA in loaded names
-                        idx = (
-                            lora_loaded_names.index(lora_name)
-                            if lora_loaded_names
-                            else -1
-                        )
-                        # Get the weight value
+                        # Use the index from selected_loras, not from lora_loaded_names
                         weight = (
-                            lora_values[idx]
-                            if lora_values and idx >= 0 and idx < len(lora_values)
+                            lora_values[i]
+                            if lora_values and i < len(lora_values)
                             else 1.0
                         )
                         # Handle weight as list
@@ -1287,7 +1281,7 @@ class VideoJobQueue:
                     if "loras" in job_data:
                         lora_data = job_data.get("loras", {})
                         selected_loras = list(lora_data.keys())
-                        lora_values = [[v] for v in lora_data.values()]
+                        lora_values = [v for v in lora_data.values()]
                         params["selected_loras"] = selected_loras
                         params["lora_values"] = lora_values
 
