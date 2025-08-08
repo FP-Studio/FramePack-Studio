@@ -14,6 +14,7 @@ from diffusers_helper.utils import resize_and_center_crop
 from diffusers_helper.bucket_tools import find_nearest_bucket
 from diffusers_helper.hunyuan import vae_encode
 from .base_generator import BaseModelGenerator
+from shared import QuantizationFormat, timer
 
 
 class VideoBaseModelGenerator(BaseModelGenerator):
@@ -55,6 +56,7 @@ class VideoBaseModelGenerator(BaseModelGenerator):
         """
         return self.model_name
 
+    @timer
     def load_model(self):
         """
         Load the Video transformer model.
@@ -71,12 +73,15 @@ class VideoBaseModelGenerator(BaseModelGenerator):
 
         # Create the transformer model
         self.transformer = HunyuanVideoTransformer3DModelPacked.from_pretrained(
-            path_to_load, torch_dtype=torch.bfloat16
+            path_to_load,
+            torch_dtype=torch.bfloat16,
+            quantization_config=self.quantization_config,
         ).cpu()
 
         # Configure the model
         self.transformer.eval()
-        self.transformer.to(dtype=torch.bfloat16)
+        if self.quantization_format == QuantizationFormat.brain_floating_point_16bit:
+            self.transformer.to(dtype=torch.bfloat16)
         self.transformer.requires_grad_(False)
 
         # Set up dynamic swap if not in high VRAM mode
@@ -585,8 +590,8 @@ class VideoBaseModelGenerator(BaseModelGenerator):
             )
 
             # Get the ffmpeg executable from the VideoProcessor class
-            from modules.toolbox.toolbox_processor import VideoProcessor
             from modules.toolbox.message_manager import MessageManager
+            from modules.toolbox.toolbox_processor import VideoProcessor
 
             # Create a message manager for logging
             message_manager = MessageManager()

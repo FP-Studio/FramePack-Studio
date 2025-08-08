@@ -10,17 +10,49 @@ from pathlib import PurePath
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.ERROR)
+console_handler.setLevel(logging.INFO)
 file_handler = logging.FileHandler("studio.log")
 file_handler.setLevel(logging.DEBUG)
 
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+log_format = "%(asctime)s - [%(name)s:%(filename)s.%(funcName)-18s] - %(levelname)s - %(message)s"
+formatter = logging.Formatter(log_format)
 
 console_handler.setFormatter(formatter)
 file_handler.setFormatter(formatter)
 
-logger.addHandler(console_handler)
-logger.addHandler(file_handler)
+logging.basicConfig(
+    level=logging.INFO,
+    format=log_format,
+    handlers=[console_handler, file_handler],
+    encoding="utf-8",
+    errors="ignore",  # Ignore encoding errors in log files
+    force=True,  # Force the new handlers to replace any existing ones
+    style="%",  # Use printf-style formatting in log_format - does not affect how users log messages
+)
+
+# Suppress all common loggers
+loggers_to_error_level = [
+    "accelerate",
+    # "dataset",
+    # "datasets",
+    "diffusers",
+    # "filelock",
+    "huggingface_hub",
+    # "hunyuan_model",
+    # "networks",
+    "PIL",
+    # "qwen_vl_utils",
+    "safetensors",
+    "sageattention",
+    # "tokenizers",
+    "torch",
+    "torchvision",
+    # "transformers",
+    # "xformers",
+]
+
+for logger_name in loggers_to_error_level:
+    logging.getLogger(logger_name).setLevel(logging.ERROR)
 
 logger.info("Application starting up.")
 # Set environment variables
@@ -31,7 +63,8 @@ STUDIO_HF_HOME = os.path.abspath(
 # make sure to document this behavior if the HF_HOME changes in the future
 # Set the HF_HOME to the studio's hf_download directory
 # HF_HOME Must be set to its expected value prior to importing diffusers and transformers
-os.environ["HF_HOME"] = STUDIO_HF_HOME
+if os.path.exists(STUDIO_HF_HOME) or os.environ.get("HF_HOME") is None:
+    os.environ["HF_HOME"] = STUDIO_HF_HOME
 os.environ["TOKENIZERS_PARALLELISM"] = "false"  # Prevent tokenizers parallelism warning
 
 # ruff: noqa: E402 - Disable E402 for imports at the top of the file. HF_HOME must be set before importing diffusers and transformers.
@@ -56,6 +89,7 @@ from modules.pipelines.worker import worker
 from modules.studio_manager import StudioManager
 from modules.ui.queue import format_queue_status
 from modules.video_queue import JobStatus
+from shared import timer
 
 
 # Try to suppress annoyingly persistent Windows asyncio proactor errors
@@ -247,6 +281,7 @@ def enumerate_lora_dir() -> list[str]:
 lora_names = enumerate_lora_dir()
 
 
+@timer
 def process(
     model_type,
     input_image,

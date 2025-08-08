@@ -5,6 +5,7 @@ from dataclasses import asdict
 from diffusers_helper import lora_utils
 from typing import List, Optional, cast
 from pathlib import Path
+from transformers import BitsAndBytesConfig
 
 from diffusers_helper.lora_utils_kohya_ss.enums import LoraLoader
 from diffusers_helper.models.hunyuan_video_packed import (
@@ -13,6 +14,7 @@ from diffusers_helper.models.hunyuan_video_packed import (
 
 from ..settings import Settings
 from .model_configuration import ModelConfiguration
+from shared import QuantizationFormat
 
 # cSpell: ignore loras
 
@@ -22,6 +24,9 @@ class BaseModelGenerator(ABC):
     Base class for model generators.
     This defines the common interface that all model generators must implement.
     """
+
+    quantization_format: QuantizationFormat = QuantizationFormat.DEFAULT
+    quantization_config: BitsAndBytesConfig | None = None
 
     def __init__(
         self,
@@ -72,8 +77,31 @@ class BaseModelGenerator(ABC):
         self.gpu = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.cpu = torch.device("cpu")
 
+        # quantization is currently global, configured in settings
+        # maybe add kwargs if we need this to be more dynamic per job?
+        self.quantization_format = self.settings.get(
+            "quantization_format", QuantizationFormat.integer_8bit
+        )
+        self.set_quantization_config()
+
         self.previous_model_hash: str = ""
         self.previous_model_configuration: ModelConfiguration | None = None
+
+    def set_quantization_config(self):
+        if self.quantization_format == QuantizationFormat.brain_floating_point_16bit:
+            # BF16 does not require a special config
+            pass
+        if self.quantization_format == QuantizationFormat.normal_float_4bit:
+            # 4-bit NF4 quantization config
+            self.quantization_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_compute_dtype="bfloat16",
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_use_double_quant=True,
+            )
+        if self.quantization_format == QuantizationFormat.integer_8bit:
+            # 8-bit integer quantization config
+            self.quantization_config = BitsAndBytesConfig(load_in_8bit=True)
 
     @abstractmethod
     def load_model(self) -> HunyuanVideoTransformer3DModelPacked:
@@ -389,6 +417,7 @@ class BaseModelGenerator(ABC):
 
         active_model_configuration = ModelConfiguration.from_lora_names_and_weights(
             self.get_model_name(),
+            self.quantization_format,
             selected_loras,
             selected_lora_values,
             self.settings.lora_loader,

@@ -6,6 +6,7 @@ from typing import (
 
 from diffusers_helper.lora_utils_kohya_ss.enums import LoraLoader
 from modules.generators.model_configuration import ModelConfiguration
+
 from .generators import BaseModelGenerator, VideoBaseModelGenerator
 from .settings import Settings
 from .video_queue import VideoJobQueue
@@ -54,6 +55,7 @@ class ModelState:
     def is_reload_required(
         self,
         model_name: str,
+        settings: Settings,
         selected_loras: list[str],
         lora_values: list[float],
         lora_loaded_names: list[str],
@@ -85,9 +87,10 @@ class ModelState:
         active_model_configuration: ModelConfiguration = (
             ModelConfiguration.from_lora_names_and_weights(
                 model_name=model_name,
+                quantization_format=settings.quantization_format,
                 lora_names=selected_loras,
                 lora_weights=selected_lora_values,
-                lora_loader=lora_loader,
+                lora_loader=settings.lora_loader,
             )
         )
 
@@ -113,6 +116,7 @@ class ModelState:
 
         if not self.is_reload_required(
             current_generator.model_name,
+            current_generator.settings,
             selected_loras,
             lora_values,
             lora_loaded_names,
@@ -135,6 +139,7 @@ class ModelState:
         active_model_configuration: ModelConfiguration = (
             ModelConfiguration.from_lora_names_and_weights(
                 model_name=current_generator.model_name,
+                quantization_format=current_generator.settings.quantization_format,
                 lora_names=selected_loras,
                 lora_weights=selected_lora_values,
                 lora_loader=current_generator.settings.lora_loader,
@@ -224,6 +229,7 @@ class StudioManager:
 
         return self.model_state.is_reload_required(
             model_name=model_name,
+            settings=self.settings,
             selected_loras=selected_loras,
             lora_values=lora_values,
             lora_loaded_names=lora_loaded_names,

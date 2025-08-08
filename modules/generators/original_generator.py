@@ -4,6 +4,7 @@ from diffusers_helper.models.hunyuan_video_packed import (
 )
 from diffusers_helper.memory import DynamicSwapInstaller
 from .base_generator import BaseModelGenerator
+from shared import QuantizationFormat, timer
 
 
 class OriginalModelGenerator(BaseModelGenerator):
@@ -26,6 +27,7 @@ class OriginalModelGenerator(BaseModelGenerator):
         """
         return self.model_name
 
+    @timer
     def load_model(self):
         """
         Load the Original transformer model.
@@ -42,12 +44,15 @@ class OriginalModelGenerator(BaseModelGenerator):
 
         # Create the transformer model
         self.transformer = HunyuanVideoTransformer3DModelPacked.from_pretrained(
-            path_to_load, torch_dtype=torch.bfloat16
+            path_to_load,
+            torch_dtype=torch.bfloat16,
+            quantization_config=self.quantization_config,
         ).cpu()
 
         # Configure the model
         self.transformer.eval()
-        self.transformer.to(dtype=torch.bfloat16)
+        if self.quantization_format == QuantizationFormat.brain_floating_point_16bit:
+            self.transformer.to(dtype=torch.bfloat16)
         self.transformer.requires_grad_(False)
 
         # Set up dynamic swap if not in high VRAM mode
