@@ -2,7 +2,8 @@ import json
 from pathlib import Path
 from typing import Dict, Any, Optional
 import os
-from diffusers_helper.lora_utils_kohya_ss.enums import LoraLoader
+
+from shared import LoraLoader, QuantizationFormat
 
 
 class Settings:
@@ -45,6 +46,7 @@ User prompt: "{text_to_enhance}"
 Enhanced prompt:""",
             "lora_loader": LoraLoader.DEFAULT,  # lora_loader options: diffusers, lora_ready. DEFAULT is existing behavior of diffusers
             "reuse_model_instance": False,  # Reuse model instance across generations - default of False is existing behavior
+            "quantization_format": QuantizationFormat.DEFAULT,  # Default quantization format
         }
         self.settings = self.load_settings()
 
@@ -72,6 +74,21 @@ Enhanced prompt:""",
     @property
     def reuse_model_instance(self) -> bool:
         return self.settings.get("reuse_model_instance", False)
+
+    @property
+    def quantization_format(self) -> QuantizationFormat:
+        return QuantizationFormat.safe_parse(
+            self.settings.get("quantization_format", QuantizationFormat.DEFAULT)
+        )
+
+    @quantization_format.setter
+    def quantization_format(self, value: str | QuantizationFormat):
+        if not value:
+            value = QuantizationFormat.DEFAULT
+        if isinstance(value, str):
+            value = QuantizationFormat.safe_parse(value)
+
+        self.set("quantization_format", value)
 
     def load_settings(self) -> Dict[str, Any]:
         """Load settings from file or return defaults"""

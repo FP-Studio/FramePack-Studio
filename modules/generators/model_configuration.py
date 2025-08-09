@@ -304,6 +304,7 @@ class ModelSettings:
 @dataclass
 class ModelConfiguration:
     model_name: str
+    quantization_format: str
     settings: ModelSettings = field(default_factory=ModelSettings)
 
     @property
@@ -330,7 +331,9 @@ class ModelConfiguration:
         return valid
 
     @staticmethod
-    def from_settings(model_name: str, settings: ModelSettings | dict | None):
+    def from_settings(
+        model_name: str, quantization_format: str, settings: ModelSettings | dict | None
+    ):
         model_settings: ModelSettings | None = None
         if settings is None:
             model_settings = ModelSettings()
@@ -344,11 +347,16 @@ class ModelConfiguration:
         if model_settings is None:
             raise ValueError("Invalid config type for ModelConfiguration")
 
-        return ModelConfiguration(model_name=model_name, settings=model_settings)
+        return ModelConfiguration(
+            model_name=model_name,
+            quantization_format=quantization_format,
+            settings=model_settings,
+        )
 
     @staticmethod
     def from_lora_names_and_weights(
         model_name: str,
+        quantization_format: str,
         lora_names: list[str],
         lora_weights: list[float | int],
         lora_loader: str | LoraLoader,
@@ -374,7 +382,9 @@ class ModelConfiguration:
             lora_settings=lora_settings, lora_loader=str(lora_loader)
         )
         return ModelConfiguration.from_settings(
-            model_name=model_name, settings=model_settings
+            model_name=model_name,
+            quantization_format=quantization_format,
+            settings=model_settings,
         )
 
     def set_model_name(self, model_name: str) -> "ModelConfiguration":

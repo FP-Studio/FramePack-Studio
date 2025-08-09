@@ -21,6 +21,9 @@ tqdm
 timm
 transformers==4.46.2
 
+# quantization
+bitsandbytes>=0.41.1
+
 # for toolbox
 basicsr
 # basicsr-fixed

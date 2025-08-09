@@ -33,6 +33,7 @@ from modules.llm_captioner import unload_captioning_model
 from modules.llm_enhancer import unload_enhancing_model
 from . import create_pipeline
 from modules.studio_manager import StudioManager
+from shared import timer
 
 # cSpell: disable hunyan, loras
 
@@ -87,6 +88,7 @@ def get_cached_or_encode_prompt(
 
 
 @torch.no_grad()
+@timer
 def worker(
     model_type,
     input_image,

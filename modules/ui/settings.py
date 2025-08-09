@@ -1,6 +1,7 @@
 import gradio as gr
-from diffusers_helper.lora_utils_kohya_ss.enums import LoraLoader
+
 from modules.ui.generate import load_presets
+from shared import LoraLoader, QuantizationFormat
 
 
 def create_settings_ui(settings, get_latents_display_top, model_type_choices):
@@ -149,6 +150,27 @@ def create_settings_ui(settings, get_latents_display_top, model_type_choices):
                     value=settings.get("reuse_model_instance", False),
                     info="If checked, the model instance will be reused across generations to save reload time when no LoRA changes are detected and the same model is used. If unchecked, a new model instance will be created for each generation.",
                 )
+
+                gr.Markdown(
+                    """
+                    ---
+                    Quantization Format is used to reduce the memory footprint of the model weights. It is recommended to use the default format unless you have specific requirements.
+
+                    Supported formats:
+
+                    - `brain_floating_point_16bit`: This is the default. This does not quantize the model. 16-bit floating point format for brain models.
+                    - `normal_float_4bit`: NF4 format for quantization.
+                    - `integer_8bit`: 8-bit integer format for quantization. Does not work with base FramePack's memory management.
+
+                    If you are unsure, leave it as `DEFAULT`. If you encounter issues with quantization, you can set it to `NONE` to disable quantization.
+                    """
+                )
+                quantization_format = gr.Dropdown(
+                    label="Quantization Format",
+                    choices=[format.value for format in QuantizationFormat],
+                    value=settings.quantization_format.value,
+                    info="Select the quantization format for model weights.",
+                )
             save_btn = gr.Button("💾 Save Settings")
             cleanup_btn = gr.Button("🗑️ Clean Up Temporary Files")
             status = gr.HTML("")
@@ -178,6 +200,7 @@ def create_settings_ui(settings, get_latents_display_top, model_type_choices):
         "cleanup_output": cleanup_output,
         "lora_loader": lora_loader,
         "reuse_model_instance": reuse_model_instance,
+        "quantization_format": quantization_format,
     }
 
 
