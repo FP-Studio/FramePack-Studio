@@ -1,0 +1,43 @@
+<div class="queue-row" data-job-id="$job_id_full">
+  <div class="queue-row-status queue-row-status-$status_class">
+    <svg class="queue-row-status-icon" viewBox="$viewbox">
+      $status_icon
+    </svg>
+  </div>
+  <div class="queue-row-details">
+    <div class="queue-row-prompt">
+      <div class="queue-row-prompt-text">$prompt_text</div>
+    </div>
+    <div class="queue-row-settings">
+      <div class="queue-row-setting-pill">
+        <span class="queue-row-setting-label">Type</span>
+        <span class="queue-row-setting-value">$generation_type</span>
+      </div>
+      <div class="queue-row-setting-pill">
+        <span class="queue-row-setting-label">Size</span>
+        <span class="queue-row-setting-value">$size</span>
+      </div>
+      <div class="queue-row-setting-pill">
+        <span class="queue-row-setting-label">Length</span>
+        <span class="queue-row-setting-value">$length</span>
+      </div>
+      <div class="queue-row-setting-pill">
+        <span class="queue-row-setting-label">Seed</span>
+        <span class="queue-row-setting-value">$seed</span>
+      </div>
+      $settings_pills
+    </div>
+  </div>
+  <div class="queue-row-timings">
+    <div class="queue-row-timing-started">
+      Started: $started
+    </div>
+    <div class="queue-row-timing-elapsed">
+      Elapsed: $elapsed
+    </div>
+    <div class="queue-row-timing-completed">
+      Completed: $completed
+    </div>
+  </div>
+  <div class="queue-row-preview">$thumbnail</div>
+</div>
