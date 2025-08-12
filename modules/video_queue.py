@@ -72,6 +72,7 @@ class Job:
     result: Optional[str] = None
     progress_data: Optional[Dict] = None
     queue_position: Optional[int] = None
+    order_number: Optional[int] = None  # Added order number for queue sorting
     stream: Optional[AsyncStream] = None
     input_image: Optional[np.ndarray] = None
     latent_type: Optional[str] = None
@@ -843,6 +844,17 @@ class VideoJobQueue:
                     self.jobs[child_job_id] = child_job
                     print(f"  - Created child job {child_job_id} for grid job {job_id}")
 
+        # Find the lowest available order number for pending jobs
+        used_numbers = set()
+        for existing_job in self.get_all_jobs():
+            if existing_job.status == JobStatus.PENDING and existing_job.order_number is not None:
+                used_numbers.add(existing_job.order_number)
+        
+        # Find the first available number starting from 1
+        order_number = 1
+        while order_number in used_numbers:
+            order_number += 1
+            
         job = Job(
             id=job_id,
             params=params,
@@ -855,6 +867,7 @@ class VideoJobQueue:
             stream=AsyncStream(),
             input_image_saved=False,
             end_frame_image_saved=False,
+            order_number=order_number,
         )
 
         with self.lock:
