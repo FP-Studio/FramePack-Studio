@@ -462,7 +462,10 @@ def update_queue_status():
     # Make sure to update current running job info
     if job_queue.current_job:
         # Only set to RUNNING if not already in a cancellation state
-        if job_queue.current_job.status not in [JobStatus.CANCELLING, JobStatus.CANCELLED]:
+        if job_queue.current_job.status not in [
+            JobStatus.CANCELLING,
+            JobStatus.CANCELLED,
+        ]:
             job_queue.current_job.status = JobStatus.RUNNING
 
     # Update the toolbar stats
@@ -739,7 +742,7 @@ def monitor_job(job_id=None):
 
         elif job.status == JobStatus.CANCELLING:
             # Show cancelling message and keep "Cancelling..." button
-            right_preview, top_preview = get_preview_updates(last_preview) 
+            right_preview, top_preview = get_preview_updates(last_preview)
             yield (
                 job.result,
                 right_preview,
@@ -747,9 +750,7 @@ def monitor_job(job_id=None):
                 "Cancelling job...",
                 make_progress_bar_html(0, "Cancelling..."),
                 gr.update(interactive=True),
-                gr.update(
-                    interactive=False, value="Cancelling...", visible=True
-                ),
+                gr.update(interactive=False, value="Cancelling...", visible=True),
             )
             # Don't break - continue monitoring until job transitions to CANCELLED
 

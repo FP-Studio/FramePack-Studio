@@ -847,14 +847,17 @@ class VideoJobQueue:
         # Find the lowest available order number for pending jobs
         used_numbers = set()
         for existing_job in self.get_all_jobs():
-            if existing_job.status == JobStatus.PENDING and existing_job.order_number is not None:
+            if (
+                existing_job.status == JobStatus.PENDING
+                and existing_job.order_number is not None
+            ):
                 used_numbers.add(existing_job.order_number)
-        
+
         # Find the first available number starting from 1
         order_number = 1
         while order_number in used_numbers:
             order_number += 1
-            
+
         job = Job(
             id=job_id,
             params=params,
@@ -1706,7 +1709,9 @@ class VideoJobQueue:
                     self.is_processing = True
 
                 job_completed = False
-                job_was_cancelled = False  # Track if job was cancelled during processing
+                job_was_cancelled = (
+                    False  # Track if job was cancelled during processing
+                )
 
                 try:
                     if self.worker_function is None:
@@ -1740,7 +1745,10 @@ class VideoJobQueue:
                     while True:
                         # Check if job has been cancelled before processing next output
                         with self.lock:
-                            if job.status in [JobStatus.CANCELLED, JobStatus.CANCELLING]:
+                            if job.status in [
+                                JobStatus.CANCELLED,
+                                JobStatus.CANCELLING,
+                            ]:
                                 print(
                                     f"Job {job_id} was cancelled, breaking out of processing loop"
                                 )
@@ -1783,9 +1791,14 @@ class VideoJobQueue:
                                 print(f"Received end signal for job {job_id}")
                                 # Check if job was cancelled when end signal was received
                                 with self.lock:
-                                    if job.status in [JobStatus.CANCELLED, JobStatus.CANCELLING]:
+                                    if job.status in [
+                                        JobStatus.CANCELLED,
+                                        JobStatus.CANCELLING,
+                                    ]:
                                         job_was_cancelled = True
-                                        print(f"Job {job_id} end signal received due to cancellation")
+                                        print(
+                                            f"Job {job_id} end signal received due to cancellation"
+                                        )
                                 job_completed = True
                                 break
 
@@ -1808,7 +1821,9 @@ class VideoJobQueue:
                         if job.status in [JobStatus.CANCELLED, JobStatus.CANCELLING]:
                             job_was_cancelled = True
                             job.status = JobStatus.CANCELLED
-                            print(f"Job {job_id} was cancelled before exception occurred")
+                            print(
+                                f"Job {job_id} was cancelled before exception occurred"
+                            )
                         else:
                             job.status = JobStatus.FAILED
                             job.error = str(e)
@@ -1823,7 +1838,9 @@ class VideoJobQueue:
                                 if job_was_cancelled:
                                     # Job was cancelled but status is still RUNNING - mark as CANCELLED
                                     job.status = JobStatus.CANCELLED
-                                    print(f"Job {job_id} was cancelled but status was still RUNNING, correcting to CANCELLED")
+                                    print(
+                                        f"Job {job_id} was cancelled but status was still RUNNING, correcting to CANCELLED"
+                                    )
                                 else:
                                     # Job completed normally
                                     job.status = JobStatus.COMPLETED
