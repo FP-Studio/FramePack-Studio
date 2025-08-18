@@ -1,4 +1,5 @@
 import gradio as gr
+import logging
 
 from modules.version import APP_VERSION_DISPLAY
 
@@ -24,6 +25,9 @@ from modules.ui.queue import (
 )
 from modules.ui.outputs import create_outputs_ui, connect_outputs_events
 from modules.ui.settings import create_settings_ui, connect_settings_events
+
+logger = logging.getLogger(__name__)
+logger.info("Interface module loaded.")
 
 
 def create_interface(
@@ -160,7 +164,7 @@ def create_interface(
                         if current_job.progress_data
                         else ""
                     )
-                    print(
+                    logging.info(
                         f"Auto-check found current job {job_id}, triggering monitor_job"
                     )
                     return job_id, result, preview, preview, desc, html

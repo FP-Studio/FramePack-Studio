@@ -3,15 +3,18 @@ import os
 import json
 import random
 import functools
+import logging
 from PIL import Image
 import numpy as np
 
 from diffusers_helper.bucket_tools import find_nearest_bucket
 from modules.xy_plot_ui import create_xy_plot_ui
-from modules.llm_enhancer import enhance_prompt
-from modules.llm_captioner import caption_image
+from modules.llm_enhancer import enhance_prompt, stop_enhancing
+from modules.llm_captioner import caption_image, stop_captioning
 
 PRESET_FILE = os.path.join(".framepack", "generation_presets.json")
+
+logger = logging.getLogger(__name__)
 
 
 def load_presets(model_type):
@@ -183,7 +186,13 @@ def create_generate_ui(
                     prompt = gr.Textbox(label="Prompt", value=default_prompt, scale=10)
                 with gr.Row():
                     enhance_prompt_btn = gr.Button("✨ Enhance", scale=1)
+                    stop_enhance_btn = gr.Button(
+                        "❌ Stop Enhance", variant="stop", scale=1, visible=False
+                    )
                     caption_btn = gr.Button("✨ Caption", scale=1)
+                    stop_caption_btn = gr.Button(
+                        "❌ Stop Caption", variant="stop", scale=1, visible=False
+                    )
 
                 with gr.Accordion("Prompt Parameters", open=False):
                     n_prompt = gr.Textbox(
@@ -457,6 +466,8 @@ def create_generate_ui(
         "prompt": prompt,
         "enhance_prompt_btn": enhance_prompt_btn,
         "caption_btn": caption_btn,
+        "stop_enhance_btn": stop_enhance_btn,
+        "stop_caption_btn": stop_caption_btn,
         "n_prompt": n_prompt,
         "blend_sections": blend_sections,
         "batch_input_images": batch_input_images,
@@ -635,7 +646,7 @@ def connect_generate_events(g, s, q, f):
         )
         new_seed_value = random.randint(0, 21474) if randomize_seed_arg else None
         if new_seed_value:
-            print(f"Generated new seed for next job: {new_seed_value}")
+            logging.info(f"Generated new seed for next job: {new_seed_value}")
         start_button_update_after_add = gr.update(value="🚀 Add to Queue")
         if result and result[1]:
             job_id = result[1]
@@ -769,7 +780,7 @@ def connect_generate_events(g, s, q, f):
         batch_files = args[-1]
         if not batch_files:
             return
-        print(f"Starting batch processing for {len(batch_files)} images.")
+        logging.info(f"Starting batch processing for {len(batch_files)} images.")
         single_job_args = list(args[:-1])
         model_type_arg = single_job_args.pop(0)
         current_seed, randomize_seed_arg = single_job_args[6], single_job_args[7]
@@ -782,8 +793,8 @@ def connect_generate_events(g, s, q, f):
                 if randomize_seed_arg:
                     current_seed = random.randint(0, 21474)
             except Exception as e:
-                print(f"Error loading batch image {image_path}: {e}. Skipping.")
-        print("Batch processing complete.")
+                logging.error(f"Error loading batch image {image_path}: {e}. Skipping.")
+        logging.info("Batch processing complete.")
 
     g["batch_input_images"].change(
         fn=lambda files: gr.update(value=files, visible=bool(files)),
@@ -1109,7 +1120,7 @@ def connect_generate_events(g, s, q, f):
                 )
             return updates
         except Exception as e:
-            print(f"Error loading metadata: {e}")
+            logging.error(f"Error loading metadata: {e}")
             return [gr.update()] * num_outputs
 
     g["json_upload"].change(
@@ -1140,15 +1151,81 @@ def connect_generate_events(g, s, q, f):
         + list(g["lora_sliders"].values()),
     )
 
+    def enhance_prompt_wrapper(p):
+        # Show stop button, disable enhance and caption buttons
+        yield (
+            gr.update(interactive=False),  # disable enhance button
+            gr.update(visible=True),  # show stop enhance button
+            gr.update(interactive=False),  # disable caption button
+            gr.update(),  # prompt unchanged
+        )
+
+        # Use the simple enhance_prompt function (no progress updates)
+        enhanced = enhance_prompt(p)
+
+        # Hide stop button, re-enable buttons, update prompt
+        yield (
+            gr.update(interactive=True),  # re-enable enhance button
+            gr.update(visible=False),  # hide stop enhance button
+            gr.update(interactive=True),  # re-enable caption button
+            gr.update(value=enhanced)
+            if enhanced
+            else gr.update(),  # update prompt with result
+        )
+
     g["enhance_prompt_btn"].click(
-        fn=lambda p: gr.update(value=enhance_prompt(p)),
+        fn=enhance_prompt_wrapper,
         inputs=[g["prompt"]],
-        outputs=[g["prompt"]],
+        outputs=[
+            g["enhance_prompt_btn"],
+            g["stop_enhance_btn"],
+            g["caption_btn"],
+            g["prompt"],
+        ],
     )
+    g["stop_enhance_btn"].click(
+        fn=stop_enhancing,
+        outputs=[g["enhance_prompt_btn"], g["stop_enhance_btn"], g["caption_btn"]],
+    )
+
+    def caption_image_wrapper(img, p):
+        if img is None:
+            yield gr.update(), gr.update(), gr.update(), p
+            return
+
+        # Show stop button, disable enhance and caption buttons
+        yield (
+            gr.update(interactive=False),  # disable enhance button
+            gr.update(interactive=False),  # disable caption button
+            gr.update(visible=True),  # show stop caption button
+            gr.update(),  # prompt unchanged
+        )
+
+        captioned = caption_image(img)
+
+        # Hide stop button, re-enable buttons, update prompt
+        yield (
+            gr.update(interactive=True),  # re-enable enhance button
+            gr.update(interactive=True),  # re-enable caption button
+            gr.update(visible=False),  # hide stop caption button
+            gr.update(value=captioned)
+            if captioned
+            else gr.update(),  # update prompt with result
+        )
+
     g["caption_btn"].click(
-        fn=lambda img, p: gr.update(value=caption_image(img)) if img is not None else p,
+        fn=caption_image_wrapper,
         inputs=[g["input_image"], g["prompt"]],
-        outputs=[g["prompt"]],
+        outputs=[
+            g["enhance_prompt_btn"],
+            g["caption_btn"],
+            g["stop_caption_btn"],
+            g["prompt"],
+        ],
+    )
+    g["stop_caption_btn"].click(
+        fn=stop_captioning,
+        outputs=[g["enhance_prompt_btn"], g["stop_caption_btn"], g["caption_btn"]],
     )
 
     f["block"].load(
