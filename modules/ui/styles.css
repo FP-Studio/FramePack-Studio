@@ -205,3 +205,192 @@ body, .gradio-container {
     border-bottom: 1px solid #ccc;
     margin: 12px 0;
 }
+
+/* Queue Styles */
+/* Queue Container */
+.queue-container {
+  border-radius: 8px;
+  overflow: hidden;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  margin: 16px 0;
+}
+
+/* Queue Row */
+.queue-row {
+  display: grid;
+  grid-template-columns: 40px 1fr 220px 150px;
+  border-radius: 15px;
+  transition: background-color 0.2s ease;
+  align-items: start;
+  overflow: hidden;
+  margin-bottom: 25px;
+  position: relative;
+}
+
+.queue-row-details {
+  background-color: rgb(42, 42, 42);
+}
+
+.queue-row-prompt {
+  padding: 10px;
+  background-color: rgb(42, 42, 42);
+}
+
+.queue-row-prompt-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  line-clamp: 3;
+}
+
+/* Settings Pills */
+.queue-row-settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 10px;
+  background-color: var(--background-fill-primary);
+  border-top-left-radius: 15px;
+  border-top-right-radius: 15px;
+}
+
+.queue-row-setting-pill {
+  display: inline-flex;
+  font-size: 11px;
+  line-height: 1;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.queue-row-setting-label {
+  background: rgba(74, 158, 255, 0.2);
+  color: #4a9eff;
+  padding: 4px 8px;
+}
+
+.queue-row-setting-value {
+  background: rgba(74, 158, 255, 0.1);
+  color: #4a9eff;
+  padding: 4px 8px;
+}
+
+/* Status Badge */
+.queue-row-status {
+  width: 40px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom-right-radius: 15px;
+}
+
+/* Status Colors */
+.queue-row-status-pending {
+  background: #2a2a2a;
+}
+
+.queue-row-status-running {
+  background: #1a4b7c;
+}
+
+.queue-row-status-completed {
+  background: #1b5e20;
+}
+
+.queue-row-status-failed {
+  background: #7f1d1d;
+}
+
+.queue-row-status-cancelled {
+  background: #854d0e;
+}
+
+.queue-row-status-cancelling {
+  background: #d97706;
+}
+
+/* Status Icons */
+.queue-row-status-icon {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+}
+
+.queue-row-status-pending .queue-row-status-icon {
+  color: #9e9e9e;
+}
+
+.queue-row-status-running .queue-row-status-icon {
+  color: #2196f3;
+}
+
+.queue-row-status-completed .queue-row-status-icon {
+  color: #4caf50;
+}
+
+.queue-row-status-failed .queue-row-status-icon {
+  color: #f44336;
+}
+
+.queue-row-status-cancelled .queue-row-status-icon {
+  color: #ffc107;
+}
+
+.queue-row-status-cancelling .queue-row-status-icon {
+  color: #f59e0b;
+}
+
+/* Timings */
+.queue-row-timings {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 10px;
+  margin-right: 10px;
+  background-color: rgb(42, 42, 42);
+  border-top-right-radius: 15px;
+  border-bottom-left-radius: 15px;
+  border-bottom-right-radius: 15px;
+}
+
+/* Preview Image */
+.queue-row-preview {
+  height: 100%;
+}
+.queue-row-preview img {
+  border-radius: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+  height: 100%;
+  object-fit: fill !important;
+}
+
+/* Animations */
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+/* Scrollbar Styling */
+.queue-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.queue-body::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.queue-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.queue-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}

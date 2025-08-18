@@ -1,0 +1,23 @@
+<div class="queue-container">
+  <div class="queue-body">
+    $queue_rows
+  </div>
+</div>
+<script>
+
+// Add MutationObserver to handle dynamically added content
+const observer = new MutationObserver(function(mutations) {
+    mutations.forEach(function(mutation) {
+        if (mutation.addedNodes.length) {
+            console.log('Queue content updated');
+        }
+    });
+});
+
+// Start observing the queue body for changes
+const queueBody = document.querySelector('.queue-body');
+if (queueBody) {
+    observer.observe(queueBody, { childList: true, subtree: true });
+    console.log('Queue observer started');
+}
+</script>

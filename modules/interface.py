@@ -64,7 +64,11 @@ def create_interface(
         queue_status_data = update_queue_status_with_thumbnails()
         jobs = job_queue.get_all_jobs()
         pending_count = sum(1 for j in jobs if str(j.status) == "JobStatus.PENDING")
-        running_count = sum(1 for j in jobs if str(j.status) == "JobStatus.RUNNING")
+        running_count = sum(
+            1
+            for j in jobs
+            if str(j.status) in ["JobStatus.RUNNING", "JobStatus.CANCELLING"]
+        )
         completed_count = sum(1 for j in jobs if str(j.status) == "JobStatus.COMPLETED")
         queue_stats_text = f"<p style='margin:0;color:white;' class='toolbar-text'>Queue: {pending_count} | Running: {running_count} | Completed: {completed_count}</p>"
         return queue_status_data, queue_stats_text

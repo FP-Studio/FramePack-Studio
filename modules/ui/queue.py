@@ -2,54 +2,114 @@ import gradio as gr
 import time
 import logging
 from modules.video_queue import JobStatus
+from modules.ui.template_loader import (
+    render_thumbnail_html,
+    get_queue_documentation,
+    render_queue_row,
+    render_queue,
+)
 
 logger = logging.getLogger(__name__)
 
 
 def format_queue_status(jobs):
+    """Format queue status with custom HTML templates."""
+
     rows = []
     for job in jobs:
-        created = (
-            time.strftime("%H:%M:%S", time.localtime(job.created_at))
-            if job.created_at
-            else ""
-        )
-        started = (
-            time.strftime("%H:%M:%S", time.localtime(job.started_at))
-            if job.started_at
-            else ""
-        )
-        completed = (
-            time.strftime("%H:%M:%S", time.localtime(job.completed_at))
-            if job.completed_at
-            else ""
-        )
         elapsed_time = ""
         if job.started_at:
             end_time = job.completed_at or time.time()
             elapsed_seconds = end_time - job.started_at
-            status_suffix = "" if job.completed_at else " (running)"
-            elapsed_time = f"{elapsed_seconds:.2f}s{status_suffix}"
+            elapsed_time = f"{elapsed_seconds:.2f}s"
+
+        # Get job data
         generation_type = getattr(job, "generation_type", "Original")
         thumbnail = getattr(job, "thumbnail", None)
-        thumbnail_html = (
-            f'<img src="{thumbnail}" width="64" height="64" style="object-fit: contain;">'
-            if thumbnail
-            else ""
+        thumbnail_html = render_thumbnail_html(thumbnail)
+
+        # Get job settings from job.params (where JSON data is actually stored)
+        width = job.params.get("resolutionW", 512) if hasattr(job, "params") else 512
+        height = job.params.get("resolutionH", 512) if hasattr(job, "params") else 512
+        size = f"{width}×{height}"
+
+        # Get video length from total_second_length (already in seconds)
+        total_seconds = (
+            job.params.get("total_second_length", 6) if hasattr(job, "params") else 6
         )
-        rows.append(
-            [
-                job.id[:6] + "...",
-                generation_type,
-                job.status.value,
-                created,
-                started,
-                completed,
-                elapsed_time,
-                thumbnail_html,
-            ]
+        length = f"{total_seconds}s" if total_seconds else "N/A"
+
+        # Get seed from params
+        seed = job.params.get("seed", "Random") if hasattr(job, "params") else "Random"
+
+        # Get prompt from params
+        prompt = job.params.get("prompt_text", "") if hasattr(job, "params") else ""
+
+        # Get all job data for changed settings detection from job.params
+        params = job.params if hasattr(job, "params") else {}
+        job_data = {
+            "prompt": prompt,
+            "negative_prompt": params.get("n_prompt", ""),
+            "seed": seed,
+            "steps": params.get("steps", 25),
+            "cfg": params.get("cfg", 1.0),
+            "gs": params.get("gs", 10),
+            "rs": params.get("rs", 0),
+            "latent_type": params.get("latent_type", "Noise"),
+            "latent_window_size": params.get("latent_window_size", 9),
+            "resolutionW": params.get("resolutionW", 512),
+            "resolutionH": params.get("resolutionH", 512),
+            "model_type": params.get("model_type", generation_type),
+            "generation_type": params.get("model_type", generation_type),
+            "total_second_length": params.get("total_second_length", 6),
+            "blend_sections": params.get("blend_sections", 4),
+            "num_cleaned_frames": params.get("num_cleaned_frames", 0),
+            "end_frame_strength": params.get("end_frame_strength", 1.0),
+            "end_frame_image_path": params.get("end_frame_image_path", None),
+            "end_frame_used": params.get("end_frame_used", "False"),
+            "input_video": params.get("input_video", None),
+            "video_path": params.get("video_path", None),
+            "x_param": params.get("x_param", None),
+            "y_param": params.get("y_param", None),
+            "x_values": params.get("x_values", None),
+            "y_values": params.get("y_values", None),
+            "combine_with_source": params.get("combine_with_source", True),
+            "use_teacache": params.get("use_teacache", False),
+            "teacache_num_steps": params.get("teacache_num_steps", 25),
+            "teacache_rel_l1_thresh": params.get("teacache_rel_l1_thresh", 0.15),
+            "use_magcache": params.get("use_magcache", True),
+            "magcache_threshold": params.get("magcache_threshold", 0.1),
+            "magcache_max_consecutive_skips": params.get(
+                "magcache_max_consecutive_skips", 2
+            ),
+            "magcache_retention_ratio": params.get("magcache_retention_ratio", 0.25),
+            "loras": params.get("loras", {}),
+        }
+
+        # Render each row using the template
+        row_html = render_queue_row(
+            job_id=job.id[:6] + "...",
+            job_id_full=job.id,
+            generation_type=generation_type,
+            status=job.status.value,
+            prompt_text=prompt,
+            size=size,
+            length=length,
+            seed=str(seed),
+            started=time.strftime("%H:%M:%S", time.localtime(job.started_at))
+            if job.started_at
+            else "--",
+            completed=time.strftime("%H:%M:%S", time.localtime(job.completed_at))
+            if job.completed_at
+            else "--",
+            elapsed=elapsed_time or "--",
+            thumbnail=thumbnail_html,
+            job_data=job_data,
         )
-    return rows
+        rows.append(row_html)
+
+    # Render the complete queue
+    return render_queue(rows)
 
 
 def update_queue_status_with_thumbnails():
@@ -61,7 +121,47 @@ def update_queue_status_with_thumbnails():
             if job.status == JobStatus.PENDING:
                 job.queue_position = job_queue.get_queue_position(job.id)
         if job_queue.current_job:
-            job_queue.current_job.status = JobStatus.RUNNING
+            # Only set to RUNNING if not already in a cancellation state
+            if job_queue.current_job.status not in [
+                JobStatus.CANCELLING,
+                JobStatus.CANCELLED,
+            ]:
+                job_queue.current_job.status = JobStatus.RUNNING
+
+        # Sort jobs according to the requested priority:
+        # 1. Running and Cancelling items first (same job transitioning states)
+        # 2. Queued (pending) items in ascending order by created_at
+        # 3. Editing items (future feature)
+        # 4. Completed, Failed, and Cancelled items in descending order by completed_at
+        def sort_key(job):
+            if job.status in [JobStatus.RUNNING, JobStatus.CANCELLING]:
+                return (
+                    0,
+                    job.created_at,
+                )  # Running/Cancelling items first (same priority - never coexist)
+            elif job.status == JobStatus.PENDING:
+                # Sort by order number if available, otherwise fall back to created_at
+                return (
+                    1,
+                    job.order_number
+                    if job.order_number is not None
+                    else job.created_at,
+                )
+            elif job.status == JobStatus.EDITING:
+                return (
+                    2,
+                    job.created_at,
+                )  # Editing items third, ordered by creation time
+            else:  # COMPLETED, FAILED, CANCELLED
+                # Use completed_at if available, otherwise use created_at, with descending order
+                timestamp = job.completed_at if job.completed_at else job.created_at
+                return (
+                    3,
+                    -timestamp,
+                )  # Completed/Failed/Cancelled items last, descending order
+
+        jobs.sort(key=sort_key)
+
         return format_queue_status(jobs)
     except ImportError:
         logging.error(
@@ -97,33 +197,13 @@ def create_queue_ui():
                 confirm_cancel_yes_btn = gr.Button("❌ Yes, Cancel All", variant="stop")
                 confirm_cancel_no_btn = gr.Button("↩️ No, Go Back")
             with gr.Row():
-                queue_status = gr.DataFrame(
-                    headers=[
-                        "Job ID",
-                        "Type",
-                        "Status",
-                        "Created",
-                        "Started",
-                        "Completed",
-                        "Elapsed",
-                        "Preview",
-                    ],
-                    datatype=["str", "str", "str", "str", "str", "str", "str", "html"],
+                # Create custom queue HTML component
+                queue_status = gr.HTML(
+                    render_queue([]),  # Start with empty queue
                     label="Job Queue",
                 )
             with gr.Accordion("Queue Documentation", open=False):
-                gr.Markdown("""
-                ## Queue Tab Guide
-                
-                This tab is for managing your generation jobs.
-                
-                - **Refresh Queue**: Update the job list.
-                - **Cancel Queue**: Stop all pending jobs.
-                - **Clear Complete**: Remove finished, failed, or cancelled jobs from the list.
-                - **Load Queue**: Load jobs from the default `queue.json`.
-                - **Export Queue**: Save the current job list and its images to a zip file.
-                - **Import Queue**: Load a queue from a `.json` or `.zip` file.
-                """)
+                gr.Markdown(get_queue_documentation())
     return {
         "queue_status": queue_status,
         "refresh_button": refresh_button,

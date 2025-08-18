@@ -48,6 +48,8 @@ class JobStatus(Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+    CANCELLING = "cancelling"
+    EDITING = "editing"
 
 
 class JobType(Enum):
@@ -70,6 +72,7 @@ class Job:
     result: Optional[str] = None
     progress_data: Optional[Dict] = None
     queue_position: Optional[int] = None
+    order_number: Optional[int] = None  # Added order number for queue sorting
     stream: Optional[AsyncStream] = None
     input_image: Optional[np.ndarray] = None
     latent_type: Optional[str] = None
@@ -93,7 +96,7 @@ class Job:
             if isinstance(self.input_image, np.ndarray):
                 # Handle numpy array (image)
                 img = Image.fromarray(self.input_image)
-                img.thumbnail((100, 100))
+                img.thumbnail((150, 150))
                 buffered = io.BytesIO()
                 img.save(buffered, format="PNG")
                 self.thumbnail = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode()}"
@@ -175,7 +178,7 @@ class Job:
                             # DEBUG IMAGE SAVING REMOVED
                             # Use the last frame for the thumbnail
                             img = Image.fromarray(last_frame)
-                            img.thumbnail((100, 100))
+                            img.thumbnail((150, 150))
                             buffered = io.BytesIO()
                             img.save(buffered, format="PNG")
                             self.thumbnail = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode()}"
@@ -184,7 +187,7 @@ class Job:
                             print("No frames were read, using red thumbnail")
                             # Fallback to red thumbnail if no frames were read - more visible for debugging
                             img = Image.new(
-                                "RGB", (100, 100), (255, 0, 0)
+                                "RGB", (150, 150), (255, 0, 0)
                             )  # Red for video
                             buffered = io.BytesIO()
                             img.save(buffered, format="PNG")
@@ -262,7 +265,7 @@ class Job:
                             if frame_for_thumbnail is not None:
                                 # Convert to PIL Image and create a thumbnail
                                 img = Image.fromarray(frame_for_thumbnail)
-                                img.thumbnail((100, 100))
+                                img.thumbnail((150, 150))
                                 buffered = io.BytesIO()
                                 img.save(buffered, format="PNG")
                                 self.thumbnail = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode()}"
@@ -271,7 +274,7 @@ class Job:
                                 print("No frames were extracted, using blue thumbnail")
                                 # Fallback to blue thumbnail if no frames were extracted
                                 img = Image.new(
-                                    "RGB", (100, 100), (0, 0, 255)
+                                    "RGB", (150, 150), (0, 0, 255)
                                 )  # Blue for video
                                 buffered = io.BytesIO()
                                 img.save(buffered, format="PNG")
@@ -279,7 +282,7 @@ class Job:
                         except Exception:
                             # Fallback to blue thumbnail on error
                             img = Image.new(
-                                "RGB", (100, 100), (0, 0, 255)
+                                "RGB", (150, 150), (0, 0, 255)
                             )  # Blue for video
                             buffered = io.BytesIO()
                             img.save(buffered, format="PNG")
@@ -299,7 +302,7 @@ class Job:
                     traceback.print_exc()
                     # Fallback to bright green thumbnail on error to make it more visible
                     img = Image.new(
-                        "RGB", (100, 100), (0, 255, 0)
+                        "RGB", (150, 150), (0, 255, 0)
                     )  # Bright green for error
                     buffered = io.BytesIO()
                     img.save(buffered, format="PNG")
@@ -318,7 +321,7 @@ class Job:
                 "Green Screen": (0, 177, 64),
             }
             color = color_map.get(self.latent_type, (0, 0, 0))
-            img = Image.new("RGB", (100, 100), color)
+            img = Image.new("RGB", (150, 150), color)
             buffered = io.BytesIO()
             img.save(buffered, format="PNG")
             self.thumbnail = f"data:image/png;base64,{base64.b64encode(buffered.getvalue()).decode()}"
@@ -402,12 +405,18 @@ class VideoJobQueue:
 
                 # Create LoRA data dictionary
                 lora_data = {}
-                for i, lora_name in enumerate(selected_loras):
+                for lora_name in selected_loras:
                     try:
-                        # Use the index from selected_loras, not from lora_loaded_names
+                        # Find the index of the LoRA in loaded names
+                        idx = (
+                            lora_loaded_names.index(lora_name)
+                            if lora_loaded_names
+                            else -1
+                        )
+                        # Get the weight value
                         weight = (
-                            lora_values[i]
-                            if lora_values and i < len(lora_values)
+                            lora_values[idx]
+                            if lora_values and idx >= 0 and idx < len(lora_values)
                             else 1.0
                         )
                         # Handle weight as list
@@ -835,6 +844,20 @@ class VideoJobQueue:
                     self.jobs[child_job_id] = child_job
                     print(f"  - Created child job {child_job_id} for grid job {job_id}")
 
+        # Find the lowest available order number for pending jobs
+        used_numbers = set()
+        for existing_job in self.get_all_jobs():
+            if (
+                existing_job.status == JobStatus.PENDING
+                and existing_job.order_number is not None
+            ):
+                used_numbers.add(existing_job.order_number)
+
+        # Find the first available number starting from 1
+        order_number = 1
+        while order_number in used_numbers:
+            order_number += 1
+
         job = Job(
             id=job_id,
             params=params,
@@ -847,6 +870,7 @@ class VideoJobQueue:
             stream=AsyncStream(),
             input_image_saved=False,
             end_frame_image_saved=False,
+            order_number=order_number,
         )
 
         with self.lock:
@@ -890,9 +914,9 @@ class VideoJobQueue:
                 if hasattr(job, "stream") and job.stream:
                     job.stream.input_queue.push("end")
 
-                # Mark job as cancelled (this will be confirmed when the worker processes the end signal)
-                job.status = JobStatus.CANCELLED
-                job.completed_at = time.time()  # Mark completion time
+                # Mark job as cancelling (will be set to CANCELLED when the worker processes the end signal)
+                job.status = JobStatus.CANCELLING
+                # Don't set completed_at yet - wait until actually cancelled
 
                 # Let the worker loop handle the transition to the next job
                 # This ensures the current job is fully processed before switching
@@ -1020,6 +1044,9 @@ class VideoJobQueue:
 
             if job.status == JobStatus.RUNNING:
                 return 0
+
+            if job.status == JobStatus.CANCELLING:
+                return 0  # Cancelling jobs are also actively being processed
 
             if job.status != JobStatus.PENDING:
                 return None
@@ -1179,13 +1206,13 @@ class VideoJobQueue:
                         "cfg": job_data.get("cfg", 1.0),
                         "gs": job_data.get("gs", 10.0),
                         "rs": job_data.get("rs", 0.0),
-                        "latent_type": job_data.get("latent_type", "Black"),
+                        "latent_type": job_data.get("latent_type", "Noise"),
                         "total_second_length": job_data.get("total_second_length", 6),
                         "blend_sections": job_data.get("blend_sections", 4),
                         "latent_window_size": job_data.get("latent_window_size", 9),
                         "resolutionW": job_data.get("resolutionW", 640),
                         "resolutionH": job_data.get("resolutionH", 640),
-                        "use_magcache": job_data.get("use_magcache", False),
+                        "use_magcache": job_data.get("use_magcache", True),
                         "magcache_threshold": job_data.get("magcache_threshold", 0.1),
                         "magcache_max_consecutive_skips": job_data.get(
                             "magcache_max_consecutive_skips", 2
@@ -1197,7 +1224,7 @@ class VideoJobQueue:
                         "input_image": None,
                         "end_frame_image": None,
                         "end_frame_strength": job_data.get("end_frame_strength", 1.0),
-                        "use_teacache": job_data.get("use_teacache", True),
+                        "use_teacache": job_data.get("use_teacache", False),
                         "teacache_num_steps": job_data.get("teacache_num_steps", 25),
                         "teacache_rel_l1_thresh": job_data.get(
                             "teacache_rel_l1_thresh", 0.15
@@ -1281,7 +1308,7 @@ class VideoJobQueue:
                     if "loras" in job_data:
                         lora_data = job_data.get("loras", {})
                         selected_loras = list(lora_data.keys())
-                        lora_values = [v for v in lora_data.values()]
+                        lora_values = list(lora_data.values())
                         params["selected_loras"] = selected_loras
                         params["lora_values"] = lora_values
 
@@ -1682,6 +1709,9 @@ class VideoJobQueue:
                     self.is_processing = True
 
                 job_completed = False
+                job_was_cancelled = (
+                    False  # Track if job was cancelled during processing
+                )
 
                 try:
                     if self.worker_function is None:
@@ -1715,11 +1745,15 @@ class VideoJobQueue:
                     while True:
                         # Check if job has been cancelled before processing next output
                         with self.lock:
-                            if job.status == JobStatus.CANCELLED:
+                            if job.status in [
+                                JobStatus.CANCELLED,
+                                JobStatus.CANCELLING,
+                            ]:
                                 print(
                                     f"Job {job_id} was cancelled, breaking out of processing loop"
                                 )
                                 job_completed = True
+                                job_was_cancelled = True
                                 break
 
                         # Get current time for activity checks
@@ -1755,6 +1789,16 @@ class VideoJobQueue:
 
                             elif flag == "end":
                                 print(f"Received end signal for job {job_id}")
+                                # Check if job was cancelled when end signal was received
+                                with self.lock:
+                                    if job.status in [
+                                        JobStatus.CANCELLED,
+                                        JobStatus.CANCELLING,
+                                    ]:
+                                        job_was_cancelled = True
+                                        print(
+                                            f"Job {job_id} end signal received due to cancellation"
+                                        )
                                 job_completed = True
                                 break
 
@@ -1773,8 +1817,16 @@ class VideoJobQueue:
                     traceback.print_exc()
                     print(f"Error processing job {job_id}: {e}")
                     with self.lock:
-                        job.status = JobStatus.FAILED
-                        job.error = str(e)
+                        # Check if job was cancelled before the exception occurred
+                        if job.status in [JobStatus.CANCELLED, JobStatus.CANCELLING]:
+                            job_was_cancelled = True
+                            job.status = JobStatus.CANCELLED
+                            print(
+                                f"Job {job_id} was cancelled before exception occurred"
+                            )
+                        else:
+                            job.status = JobStatus.FAILED
+                            job.error = str(e)
                         job.completed_at = time.time()
                     job_completed = True
 
@@ -1783,13 +1835,29 @@ class VideoJobQueue:
                         # Make sure we properly clean up the job state
                         if job.status == JobStatus.RUNNING:
                             if job_completed:
-                                job.status = JobStatus.COMPLETED
+                                if job_was_cancelled:
+                                    # Job was cancelled but status is still RUNNING - mark as CANCELLED
+                                    job.status = JobStatus.CANCELLED
+                                    print(
+                                        f"Job {job_id} was cancelled but status was still RUNNING, correcting to CANCELLED"
+                                    )
+                                else:
+                                    # Job completed normally
+                                    job.status = JobStatus.COMPLETED
                             else:
                                 # Something went wrong but we didn't mark it as completed
                                 job.status = JobStatus.FAILED
                                 job.error = "Job processing was interrupted"
 
                             job.completed_at = time.time()
+                        elif job.status == JobStatus.CANCELLING:
+                            # Transition from CANCELLING to CANCELLED
+                            job.status = JobStatus.CANCELLED
+                            job.completed_at = time.time()
+                        elif job.status == JobStatus.CANCELLED:
+                            # Job was already marked as cancelled, ensure completed_at is set
+                            if not job.completed_at:
+                                job.completed_at = time.time()
 
                     print(f"Finishing job {job_id} with status {job.status}")
                     self.is_processing = False
